@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Tenant {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  status      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  inspections Inspection[]
+  users       User[]
+}
+
+model User {
+  id             String       @id @default(uuid())
+  tenantId       String
+  name           String
+  email          String       @unique
+  password       String
+  role           String       @default("OPERATOR")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  inspections    Inspection[] @relation("CreatedInspections")
+  assignedQueues Queue[]
+  tenant         Tenant       @relation(fields: [tenantId], references: [id])
+}
+
+model Inspection {
+  id          String            @id @default(uuid())
+  tenantId    String
+  protocol    String            @unique
+  placa         String
+  chassi        String?
+  renavam       String?
+  cliente       String?
+  seguradora    String?
+  modelo        String?
+  marca         String?
+  cor           String?
+  municipio     String?
+  uf            String?
+  combustivel   String?
+  ano           Int?
+  anoFabricacao Int?
+  tipoVeiculo   String?
+  motor         String?
+  caixaCambio   String?
+  passagCap     Int?
+  potencia      Int?
+  qtdEixos      Int?
+  cargaCap      String?
+  cmt           String?
+  pbt           String?
+  carroceria    String?
+  numTrasDif    String?
+  observacoes   String?
+
+  status      String            @default("ENVIADO")
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  tenant      Tenant            @relation(fields: [tenantId], references: [id])
+  createdBy   User              @relation("CreatedInspections", fields: [createdById], references: [id])
+  photos      InspectionPhoto[]
+  queue       Queue?
+}
+
+model InspectionPhoto {
+  id           String     @id @default(uuid())
+  inspectionId String
+  categoria    String
+  url          String
+  latitude     Float?
+  longitude    Float?
+  address      String?
+  capturedAt   DateTime   @default(now())
+  inspection   Inspection @relation(fields: [inspectionId], references: [id])
+}
+
+model Queue {
+  id           String     @id @default(uuid())
+  inspectionId String     @unique
+  assignedToId String?
+  lockedAt     DateTime?
+  status       String     @default("EM_ANDAMENTO")
+  updatedAt    DateTime   @default(now()) @updatedAt
+  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
+
+  inspection   Inspection @relation(fields: [inspectionId], references: [id])
+}
+
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  details   String?
+  createdAt DateTime @default(now())
+}

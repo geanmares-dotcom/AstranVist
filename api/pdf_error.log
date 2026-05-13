@@ -1,0 +1,4 @@
+[2026-05-13T19:55:05.012Z] Error: Vistoria não encontrada
+Stack: NotFoundException: Vistoria não encontrada
+    at ReportsService.generateInspectionReport (C:\Users\gean.mares\.gemini\antigravity\scratch\AstranVist\api\src\reports\reports.service.ts:24:15)
+    at async ReportsController.downloadReport (C:\Users\gean.mares\.gemini\antigravity\scratch\AstranVist\api\src\reports\reports.controller.ts:14:34)

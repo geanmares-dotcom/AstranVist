@@ -1,0 +1,17 @@
+export const MANDATORY_PHOTOS = [
+  { id: 'frontal', label: 'Frontal' },
+  { id: 'diag_diant_pass', label: 'Diagonal dianteira passageiro' },
+  { id: 'diag_diant_mot', label: 'Diagonal dianteira motorista' },
+  { id: 'forro_pass', label: 'Forro de porta passageiro' },
+  { id: 'forro_mot', label: 'Forro de porta motorista' },
+  { id: 'chassi', label: 'Chassi' },
+  { id: 'diag_tras_mot', label: 'Diagonal traseira lado motorista' },
+  { id: 'diag_tras_pass', label: 'Diagonal traseira lado passageiro' },
+  { id: 'traseira', label: 'Traseira' },
+  { id: 'plaqueta_cabine', label: 'Plaqueta da cabine' },
+  { id: 'hodometro', label: 'Hodômetro' },
+  { id: 'painel_mot', label: 'Painel lado motorista' },
+  { id: 'painel_pass', label: 'Painel lado passageiro' },
+  { id: 'parabrisa', label: 'Exclusiva do para-brisa' },
+  { id: 'motor', label: 'Compartimento do motor' },
+];
