@@ -35,11 +35,27 @@ export default function PublicColetaPage() {
   useEffect(() => {
     if (id) {
       // Busca dados básicos da vistoria (Público)
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/inspections/${id}`)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      fetch(`${apiUrl}/inspections/${id}`)
         .then(res => res.json())
         .then(data => {
           setInspection(data);
           setLoading(false);
+          
+          // Preenche fotos já existentes
+          if (data.photos && data.photos.length > 0) {
+            const existingPhotos: Record<string, string> = {};
+            data.photos.forEach((p: any) => {
+              const cat = PHOTO_CATEGORIES.find(c => c.label === p.categoria);
+              if (cat) {
+                existingPhotos[cat.id] = p.url;
+              }
+            });
+            setPhotos(existingPhotos);
+          }
+
+          // Marca como acessado
+          fetch(`${apiUrl}/inspections/public/${id}/mark-accessed`, { method: 'POST' });
         })
         .catch(err => {
           console.error(err);
@@ -49,6 +65,9 @@ export default function PublicColetaPage() {
   }, [id]);
 
   const handleCapture = (catId: string) => {
+    // Se a foto já existe e foi carregada do banco, não deixa tirar de novo (a menos que queira permitir sobrescrever)
+    // No caso de NOVA_COLETA, as rejeitadas foram deletadas, então elas estarão vazias aqui.
+    
     // Simulação de captura real
     const mockUrls: Record<string, string> = {
       frontal: 'https://images.unsplash.com/photo-1542362567-b05503f3f5f4?q=80&w=800',
@@ -58,8 +77,17 @@ export default function PublicColetaPage() {
       painel: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?q=80&w=800',
       chassi: 'https://images.unsplash.com/photo-1517524206127-48bbd363f3d7?q=80&w=800'
     };
+    
+    // Se for a primeira foto sendo tirada NESTA SESSÃO
+    if (Object.keys(photos).length === (inspection?.photos?.length || 0)) {
+       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+       fetch(`${apiUrl}/inspections/public/${id}/mark-started`, { method: 'POST' });
+    }
+
     setPhotos(prev => ({ ...prev, [catId]: mockUrls[catId] || mockUrls.frontal }));
   };
+
+
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -149,12 +177,12 @@ export default function PublicColetaPage() {
                    }`}>
                       {photos[cat.id] ? <Check size={24} /> : <Camera size={24} />}
                    </div>
-                   <div className="text-left">
-                      <p className={`text-sm font-bold ${photos[cat.id] ? 'text-emerald-700' : 'text-slate-700'}`}>{cat.label}</p>
-                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
-                        {photos[cat.id] ? 'Foto capturada' : 'Aguardando captura'}
-                      </p>
-                   </div>
+                    <div className="text-left">
+                       <p className={`text-sm font-bold ${photos[cat.id] ? 'text-emerald-700' : 'text-slate-700'}`}>{cat.label}</p>
+                       <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">
+                         {photos[cat.id] ? (inspection?.photos?.some((p: any) => p.categoria === cat.label) ? 'Foto prévia mantida' : 'Foto capturada') : 'Aguardando captura'}
+                       </p>
+                    </div>
                 </div>
                 {photos[cat.id] && (
                   <div className="h-12 w-12 rounded-lg overflow-hidden border border-emerald-200">

@@ -37,12 +37,22 @@ export class InspectionsService {
   async addPhotos(id: string, photos: { categoria: string; url: string; latitude?: number; longitude?: number }[], tenantId: string) {
     const inspection = await this.findOnePublic(id);
 
+    // Remove fotos existentes para as categorias enviadas para evitar duplicidade
+    const categories = photos.map(p => p.categoria);
+    await this.prisma.inspectionPhoto.deleteMany({
+      where: {
+        inspectionId: inspection.id,
+        categoria: { in: categories }
+      }
+    });
+
     await this.prisma.inspectionPhoto.createMany({
       data: photos.map(p => ({
         ...p,
         inspectionId: inspection.id,
       })),
     });
+
 
     await this.prisma.inspection.update({
       where: { id: inspection.id },
@@ -63,9 +73,36 @@ export class InspectionsService {
     });
   }
 
-  async findAll(tenantId: string) {
+  // Busca avançada com filtros
+  async findAll(tenantId: string, filters?: any) {
+    const where: any = { tenantId };
+
+    if (filters) {
+      // Filtro de texto (Placa, Cliente, Chassi, Protocolo)
+      if (filters.searchType && filters.searchValue) {
+        where[filters.searchType] = { contains: filters.searchValue };
+      }
+
+      // Filtro de Status
+      if (filters.status) {
+        where.status = filters.status;
+      }
+
+      // Filtro de Tipo de Veículo
+      if (filters.tipoVeiculo) {
+        where.tipoVeiculo = filters.tipoVeiculo;
+      }
+
+      // Filtro de Período
+      if (filters.startDate || filters.endDate) {
+        where.createdAt = {};
+        if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+        if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
     return this.prisma.inspection.findMany({
-      where: { tenantId },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         createdBy: {
@@ -105,38 +142,104 @@ export class InspectionsService {
     });
   }
 
+  async markAsAccessed(id: string) {
+    const inspection = await this.prisma.inspection.findUnique({ where: { id } });
+    if (!inspection) return;
+
+    // Só muda se ainda estiver no estado inicial
+    if (inspection.status === InspectionStatus.AGUARDANDO_COLETA) {
+      return this.prisma.inspection.update({
+        where: { id },
+        data: { status: InspectionStatus.COLETA_ACESSADA }
+      });
+    }
+    return inspection;
+  }
+
+  async markAsStarted(id: string) {
+    const inspection = await this.prisma.inspection.findUnique({ where: { id } });
+    if (!inspection) return;
+
+    if (inspection.status === InspectionStatus.COLETA_ACESSADA || inspection.status === InspectionStatus.AGUARDANDO_COLETA) {
+      return this.prisma.inspection.update({
+        where: { id },
+        data: { status: InspectionStatus.COLETA_EM_ANDAMENTO }
+      });
+    }
+    return inspection;
+  }
+
+
   async getInitialPending(tenantId: string) {
     return this.prisma.inspection.findMany({
       where: {
         tenantId,
-        status: InspectionStatus.AGUARDANDO_COLETA
+        status: {
+          in: [
+            InspectionStatus.AGUARDANDO_COLETA,
+            InspectionStatus.COLETA_ACESSADA,
+            InspectionStatus.COLETA_EM_ANDAMENTO
+          ]
+        }
       },
       include: {
         createdBy: { select: { name: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { updatedAt: 'desc' }
     });
   }
 
+
   async getDashboardStats(tenantId: string) {
     const today = new Date();
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(today.getDate() - 7);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const statusCounts = await this.prisma.inspection.groupBy({
+    const rawStatusCounts = await this.prisma.inspection.groupBy({
       by: ['status'],
-      where: { tenantId },
-      _count: { _all: true }
-    });
-
-    const dailyVolume = await this.prisma.inspection.groupBy({
-      by: ['createdAt'],
-      where: {
+      where: { 
         tenantId,
-        createdAt: { gte: sevenDaysAgo }
+        createdAt: { gte: startOfMonth }
       },
       _count: { _all: true }
     });
+
+    const statusMap: Record<string, number> = {
+      'Aprovadas': 0,
+      'Aguardando Nova Coleta': 0,
+      'Enviadas': 0,
+      'Reprovadas': 0,
+      'Criadas': 0
+    };
+
+    rawStatusCounts.forEach(s => {
+      statusMap['Criadas'] += s._count._all;
+      
+      if (s.status === 'FINALIZADO' || s.status === 'APROVADO_COM_RESSALVA' || s.status === 'APROVADO') {
+        statusMap['Aprovadas'] += s._count._all;
+      } else if (s.status === 'NOVA_COLETA') {
+        statusMap['Aguardando Nova Coleta'] += s._count._all;
+      } else if (s.status === 'ENVIADO' || s.status === 'EM_ANDAMENTO') {
+        statusMap['Enviadas'] += s._count._all;
+      } else if (s.status === 'REPROVADO') {
+        statusMap['Reprovadas'] += s._count._all;
+      }
+    });
+
+    const inspectionsThisMonth = await this.prisma.inspection.findMany({
+      where: {
+        tenantId,
+        createdAt: { gte: startOfMonth }
+      },
+      select: { createdAt: true }
+    });
+
+    const dailyMap: Record<string, number> = {};
+    inspectionsThisMonth.forEach(i => {
+      const day = i.createdAt.toISOString().split('T')[0];
+      dailyMap[day] = (dailyMap[day] || 0) + 1;
+    });
+
+    const dailyVolume = Object.entries(dailyMap).map(([date, count]) => ({ date, count }));
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -159,10 +262,22 @@ export class InspectionsService {
       return { name: user?.name, count: r._count._all };
     }));
 
+    const mesaCount = await this.prisma.queue.count({
+      where: {
+        inspection: { tenantId },
+        status: 'EM_ANDAMENTO'
+      }
+    });
+
     return {
-      statusDistribution: statusCounts.map(s => ({ status: s.status, count: s._count._all })),
-      dailyVolume: dailyVolume.map(v => ({ date: v.createdAt, count: v._count._all })),
-      topAnalysts: formattedRanking.filter(Boolean)
+      statusDistribution: Object.entries(statusMap).map(([label, count]) => ({ status: label, count })),
+      dailyVolume: dailyVolume,
+      topAnalysts: formattedRanking.filter(Boolean),
+      summary: {
+        criadas: statusMap['Criadas'],
+        mesa: mesaCount,
+        concluidas: statusMap['Aprovadas'] + statusMap['Reprovadas']
+      }
     };
   }
 }

@@ -49,9 +49,20 @@ export const queueService = {
     return response.data;
   },
 
-  finish: async (inspectionId: string, status: string, comment?: string) => {
-    const response = await api.post(`/queue/${inspectionId}/finish`, { status, comment });
+  finish: async (inspectionId: string, status: string, comment?: string, rejectedPhotoIds?: string[]) => {
+    const response = await api.post(`/queue/${inspectionId}/finish`, { status, comment, rejectedPhotoIds });
     return response.data;
   },
 
+  getMyStats: async () => {
+    const response = await api.get<{ finishedToday: number, myCurrent: number }>('/queue/stats/me');
+    return response.data;
+  },
+
+  release: async (inspectionId: string) => {
+
+    const response = await api.post(`/queue/${inspectionId}/release`);
+    return response.data;
+  },
 };
+

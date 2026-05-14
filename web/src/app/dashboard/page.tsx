@@ -1,317 +1,279 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  Plus, 
-  Search, 
-  Bell, 
+  BarChart3, 
   Clock, 
   CheckCircle2, 
-  AlertCircle,
-  ChevronRight,
-  TrendingUp,
-  Target,
+  AlertCircle, 
+  TrendingUp, 
+  ArrowUpRight,
   Zap,
-  Activity,
-  Calendar,
-  Camera,
-  FileText,
-  User,
-  ShieldCheck,
-  BarChart3,
-  PieChart as PieIcon,
   LayoutDashboard,
-  Download
+  Calendar,
+  Send,
+  Plus
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { inspectionService } from '../../services/inspectionService';
-import api from '../../services/api';
 import Link from 'next/link';
-import Sidebar from '../../components/Sidebar';
+
+
+import { useQuery } from '@tanstack/react-query';
 import { 
-  AreaChart, 
-  Area, 
+  BarChart, 
+  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip, 
-  ResponsiveContainer,
+  ResponsiveContainer, 
+  AreaChart, 
+  Area,
   PieChart,
   Pie,
   Cell
 } from 'recharts';
+import { inspectionService } from '../../services/inspectionService';
+import Sidebar from '../../components/Sidebar';
+import { useTheme } from '../../contexts/ThemeContext';
+import { authService } from '../../services/authService';
+
+const COLORS = ['#6366f1', '#f59e0b', '#3b82f6', '#ef4444', '#10b981', '#ec4899', '#8b5cf6', '#06b6d4'];
+
+const formatStatus = (status: string) => {
+  const map: any = {
+    AGUARDANDO_COLETA: 'ENVIADO',
+    COLETA_ACESSADA: 'ACESSADO',
+    COLETA_EM_ANDAMENTO: 'EM ANDAMENTO',
+    NOVA_COLETA: 'PENDENTE CLIENTE',
+    FINALIZADO: 'APROVADO',
+    REPROVADO: 'REPROVADO',
+    APROVADO_COM_RESSALVAS: 'APROVADO C/ RESS.',
+    EM_ANDAMENTO: 'EM ANÁLISE'
+  };
+  return map[status] || status;
+};
 
 export default function DashboardPage() {
-  // Busca dados do perfil para saudação
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: async () => {
-       const res = await api.get('/auth/me');
-       return res.data;
-    }
-  });
+  const [mounted, setMounted] = React.useState(false);
+  const [user, setUser] = React.useState<any>(null);
+  const { theme } = useTheme();
+  
+  React.useEffect(() => {
+    setMounted(true);
+    setUser(authService.getUser());
+  }, []);
 
-  // Busca todas as vistorias (Tabela)
-  const { data: inspections, isLoading: loadingInspections } = useQuery({
-    queryKey: ['inspections'],
-    queryFn: () => inspectionService.findAll(),
-  });
 
-  // Busca estatísticas analíticas
-  const { data: dashboardStats, isLoading: loadingStats } = useQuery({
-    queryKey: ['dashboardStats'],
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
     queryFn: () => inspectionService.getDashboardStats(),
     refetchInterval: 60000,
   });
 
-  const [activeTab, setActiveTab] = useState<'ENVIADOS' | 'ANDAMENTO' | 'FINALIZADOS'>('ENVIADOS');
+  const isDark = theme === 'dark';
 
-  const filteredInspections = inspections?.filter(i => {
-    if (activeTab === 'ENVIADOS') return i.status === 'ENVIADO' || i.status === 'NOVA_COLETA' || i.status === 'AGUARDANDO_COLETA';
-    if (activeTab === 'ANDAMENTO') return i.status === 'EM_ANDAMENTO';
-    if (activeTab === 'FINALIZADOS') return ['FINALIZADO', 'APROVADO', 'REPROVADO', 'APROVADO_COM_RESSALVA'].includes(i.status);
-    return true;
-  }).slice(0, 8);
-
-  const stats = {
-    pendentes: dashboardStats?.statusDistribution?.find(s => s.status === 'AGUARDANDO_COLETA')?.count || 0,
-    emAnalise: dashboardStats?.statusDistribution?.find(s => s.status === 'EM_ANDAMENTO')?.count || 0,
-    concluidas: (dashboardStats?.statusDistribution?.filter(s => ['FINALIZADO', 'REPROVADO', 'APROVADO_COM_RESSALVA'].includes(s.status))?.reduce((acc, curr) => acc + curr.count, 0)) || 0,
-  };
-
-  const chartData = dashboardStats?.dailyVolume?.map(v => ({
-    name: new Date(v.date).toLocaleDateString('pt-BR', { weekday: 'short' }),
-    volume: v.count
-  })) || [
-    { name: 'Seg', volume: 12 },
-    { name: 'Ter', volume: 19 },
-    { name: 'Qua', volume: 15 },
-    { name: 'Qui', volume: 22 },
-    { name: 'Sex', volume: 30 },
-    { name: 'Sáb', volume: 10 },
-    { name: 'Dom', volume: 5 }
-  ];
-
-  const pieData = dashboardStats?.statusDistribution?.map(s => ({
-    name: s.status,
-    value: s.count
-  })) || [
-    { name: 'Aprovado', value: 400 },
-    { name: 'Reprovado', value: 300 },
-    { name: 'Pendente', value: 300 },
-  ];
-
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--bg-main)]">
+        <div className="flex flex-col items-center gap-4">
+           <Zap className="text-indigo-600 animate-pulse" size={48} />
+           <p className="text-xs font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">Iniciando Painel...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[var(--bg-main)] text-slate-800 dark:text-slate-200 overflow-hidden font-sans">
       <Sidebar />
 
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header Superior */}
-        <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 z-30">
-          <div className="flex items-center gap-3">
-             <LayoutDashboard size={20} className="text-indigo-600" />
-             <h1 className="text-lg font-bold text-slate-700">Dashboard Executivo</h1>
+        <header className="h-20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 px-10 flex items-center justify-between shrink-0 z-30">
+          <div className="flex items-center gap-4">
+             <div className="h-10 w-10 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center">
+                <LayoutDashboard className="text-indigo-600 dark:text-indigo-400" size={20} />
+             </div>
+             <div>
+                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Painel Executivo</h1>
+                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Indicadores de Performance</p>
+             </div>
           </div>
           
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-200">
-               <Calendar size={14} className="text-slate-400" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                  {new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
-               </span>
-            </div>
-            <div className="h-8 w-[1px] bg-slate-200"></div>
-            <div className="flex items-center gap-3">
-               <div className="text-right hidden sm:block">
-                  <p className="text-xs font-bold text-slate-900 leading-none">{profile?.name || 'Carregando...'}</p>
-                  <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">{profile?.role || 'Aguardando'}</p>
-               </div>
-               <div className="h-10 w-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white font-black text-sm shadow-lg shadow-slate-200">
-                  {profile?.name?.charAt(0) || 'A'}
-               </div>
-            </div>
+          <div className="flex items-center gap-4">
+            <Link 
+              href="/vistorias/nova" 
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-full font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-indigo-100 dark:shadow-none active:scale-95"
+            >
+               <Plus size={16} strokeWidth={3} />
+               Nova Vistoria
+            </Link>
           </div>
+
+
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 pb-12">
-          {/* Welcome Area */}
-          <section className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-             <div className="space-y-1">
-                <h2 className="text-3xl font-black tracking-tight text-slate-900">Olá, {profile?.name?.split(' ')[0] || 'Analista'}! 👋</h2>
-                <p className="text-slate-500 text-sm font-medium">Aqui está o que aconteceu na sua operação nos últimos dias.</p>
-             </div>
-             <div className="flex items-center gap-3">
-                <button className="bg-white border border-slate-200 text-slate-700 font-bold py-3 px-6 rounded-2xl transition-all hover:bg-slate-50 flex items-center gap-2 text-xs shadow-sm">
-                   <Download size={18} /> Exportar
-                </button>
-                <Link href="/vistorias/nova" className="bg-indigo-600 hover:bg-indigo-700 text-white font-black py-3.5 px-8 rounded-2xl transition-all shadow-lg shadow-indigo-100 flex items-center gap-2 text-xs uppercase tracking-widest">
-                   <Plus size={18} /> Nova Vistoria
-                </Link>
-             </div>
-          </section>
 
-          {/* KPI Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-             <KpiCard icon={<Clock size={22} />} label="Aguardando Coleta" value={stats.pendentes} color="blue" trend="+5%" />
-             <KpiCard icon={<Activity size={22} />} label="Mesa de Análise" value={stats.emAnalise} color="orange" trend="Em Tempo Real" />
-             <KpiCard icon={<CheckCircle2 size={22} />} label="Concluídas Hoje" value={stats.concluidas} color="emerald" trend="+12%" />
-             <KpiCard icon={<Target size={22} />} label="Meta Alcançada" value="84%" color="indigo" trend="Faltam 16" />
-          </section>
+        <div className="flex-1 overflow-y-auto p-10 space-y-10">
+          
+          <div className="animate-in">
+             <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                Olá, <span className="text-indigo-600 dark:text-indigo-400">{user?.name?.split(' ')[0] || 'Gestor'}</span>! 👋
+             </h2>
+             <div className="flex items-center gap-2 mt-1">
+                <Calendar className="text-indigo-500" size={14} />
+                <span className="text-sm font-bold text-slate-500 dark:text-slate-400 capitalize">
+                  {mounted ? new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '...'}
+                </span>
+             </div>
+          </div>
 
-          {/* Charts Area */}
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-             <div className="xl:col-span-2 bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-                <div className="flex items-center justify-between">
-                   <div className="space-y-1">
-                      <h3 className="text-lg font-black text-slate-900">Volume de Vistorias</h3>
-                      <p className="text-xs text-slate-400 font-medium italic">Fluxo de capturas nos últimos 7 dias</p>
+
+          {/* Cards de KPIs em Estilo Cápsula */}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <StatCard 
+              label="Vistorias Criadas" 
+              value={stats?.summary.criadas} 
+              icon={<Send size={24} />} 
+              color="indigo" 
+              trend="+12% que ontem"
+            />
+            <StatCard 
+              label="Mesa de Análise" 
+              value={stats?.summary.mesa} 
+              icon={<Zap size={24} />} 
+              color="orange" 
+              trend="Fila Prioritária"
+            />
+            <StatCard 
+              label="Concluídas" 
+              value={stats?.summary.concluidas} 
+              icon={<CheckCircle2 size={24} />} 
+              color="emerald" 
+              trend="Saldo do Mês"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Gráfico de Volume Mensal */}
+            <div className="lg:col-span-8 ovi-card p-10 flex flex-col h-[480px]">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                   <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Volume Mensal</h3>
+                   <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Captação por dia</p>
+                </div>
+                <div className="h-10 w-10 bg-slate-50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center text-slate-400">
+                   <TrendingUp size={18} />
+                </div>
+              </div>
+              
+              <div className="flex-1 w-full overflow-hidden">
+                <ResponsiveContainer width="99%" height="100%">
+                  <AreaChart data={stats?.dailyVolume} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#334155' : '#e2e8f0'} opacity={0.5} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: isDark ? '#64748b' : '#94a3b8', fontSize: 10, fontWeight: 700}}
+                      tickFormatter={(val) => val.split('-')[2]}
+                    />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: isDark ? '#64748b' : '#94a3b8', fontSize: 10, fontWeight: 700}} />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#0f172a' : '#ffffff', 
+                        borderRadius: '20px', 
+                        border: isDark ? '1px solid #1e293b' : 'none', 
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', 
+                        padding: '15px' 
+                      }}
+                      labelStyle={{ fontWeight: 800, color: isDark ? '#f1f5f9' : '#0f172a', marginBottom: '5px' }}
+                      itemStyle={{ color: '#6366f1' }}
+                    />
+                    <Area type="monotone" dataKey="count" stroke="#6366f1" strokeWidth={4} fillOpacity={1} fill="url(#colorCount)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Distribuição por Status */}
+            <div className="lg:col-span-4 ovi-card p-10 flex flex-col min-h-[480px]">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight mb-2 text-center">Distribuição</h3>
+              <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8 text-center">Status das vistorias</p>
+              
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats?.statusDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+
+                      paddingAngle={8}
+                      dataKey="count"
+                    >
+                      {stats?.statusDistribution.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: isDark ? '#0f172a' : '#ffffff', 
+                        borderRadius: '20px', 
+                        border: isDark ? '1px solid #1e293b' : 'none', 
+                        padding: '10px' 
+                      }}
+                      itemStyle={{ color: isDark ? '#f1f5f9' : '#0f172a', fontSize: '10px', fontWeight: 'bold' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                  {stats?.statusDistribution.map((item: any, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/50 backdrop-blur-sm p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                       <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                       <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 truncate uppercase tracking-tight">{formatStatus(item.status)}</span>
+                    </div>
+                  ))}
+
+              </div>
+            </div>
+          </div>
+          
+          {/* Top Analistas */}
+          <section className="ovi-card p-10 overflow-hidden">
+             <div className="flex items-center gap-4 mb-8">
+                <div className="h-10 w-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                   <ArrowUpRight size={20} />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Performance dos Analistas (Hoje)</h3>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                {stats?.topAnalysts.map((analyst: any, idx: number) => (
+                   <div key={idx} className="bg-slate-50/50 dark:bg-slate-800/30 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 flex flex-col items-center text-center space-y-3 transition-transform hover:-translate-y-2">
+                      <div className="h-14 w-14 bg-white dark:bg-slate-700 rounded-full shadow-lg shadow-slate-100 dark:shadow-none flex items-center justify-center font-black text-indigo-600 dark:text-indigo-400 text-lg border border-slate-100 dark:border-slate-700">
+                         {analyst.name.charAt(0)}
+                      </div>
+                      <div>
+                         <p className="text-xs font-black text-slate-900 dark:text-white uppercase truncate max-w-[120px]">{analyst.name}</p>
+                         <div className="flex items-center justify-center gap-1.5 mt-1">
+                            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400">{analyst.count}</span>
+                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Feitos</span>
+                         </div>
+                      </div>
                    </div>
-                   <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 bg-indigo-500 rounded-full"></div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Capturas</span>
-                   </div>
-                </div>
-                <div className="h-72 w-full">
-                   <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData}>
-                        <defs>
-                          <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis 
-                           dataKey="name" 
-                           axisLine={false} 
-                           tickLine={false} 
-                           tick={{fontSize: 10, fontWeight: 700, fill: '#94a3b8'}} 
-                           dy={10}
-                        />
-                        <YAxis hide />
-                        <Tooltip 
-                           contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
-                           labelStyle={{ fontWeight: 800, color: '#1e293b', marginBottom: '4px' }}
-                        />
-                        <Area 
-                           type="monotone" 
-                           dataKey="volume" 
-                           stroke="#6366f1" 
-                           strokeWidth={4} 
-                           fillOpacity={1} 
-                           fill="url(#colorVolume)" 
-                           animationDuration={2000}
-                        />
-                      </AreaChart>
-                   </ResponsiveContainer>
-                </div>
-             </div>
-
-             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-8 flex flex-col items-center justify-center">
-                <div className="text-center space-y-1">
-                   <h3 className="text-lg font-black text-slate-900">Distribuição</h3>
-                   <p className="text-xs text-slate-400 font-medium">Percentual por status</p>
-                </div>
-                <div className="h-48 w-full">
-                   <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          innerRadius={60}
-                          outerRadius={80}
-                          paddingAngle={5}
-                          dataKey="value"
-                          animationDuration={1500}
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                   </ResponsiveContainer>
-                </div>
-                <div className="w-full space-y-3">
-                   {pieData.slice(0, 3).map((item, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                         <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[i] }}></div>
-                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{item.name}</span>
-                         </div>
-                         <span className="text-xs font-black text-slate-900">{item.value}</span>
-                      </div>
-                   ))}
-                </div>
-             </div>
-          </section>
-
-          {/* Bottom Grid */}
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-             <div className="xl:col-span-2 space-y-4">
-                <div className="flex items-center justify-between px-2">
-                   <h3 className="text-lg font-black text-slate-900">Atividade Recente</h3>
-                   <Link href="/analise" className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:opacity-70 transition-all flex items-center gap-1">
-                      Ver Mesa de Análise <ChevronRight size={14} />
-                   </Link>
-                </div>
-                <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-                   <table className="w-full text-left border-collapse text-[11px]">
-                      <thead>
-                         <tr className="bg-slate-50 border-b border-slate-100">
-                            <th className="px-6 py-4 font-black uppercase tracking-widest text-slate-400">Protocolo</th>
-                            <th className="px-6 py-4 font-black uppercase tracking-widest text-slate-400">Cliente</th>
-                            <th className="px-6 py-4 font-black uppercase tracking-widest text-slate-400 text-center">Status</th>
-                            <th className="px-6 py-4 font-black uppercase tracking-widest text-slate-400 text-right">Data</th>
-                         </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                         {loadingInspections ? (
-                            <tr><td colSpan={4} className="py-20 text-center text-slate-300 font-bold uppercase animate-pulse">Carregando...</td></tr>
-                         ) : filteredInspections?.map((item) => (
-                            <tr key={item.id} className="hover:bg-indigo-50/20 transition-all group cursor-pointer">
-                               <td className="px-6 py-4 font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">{item.protocol}</td>
-                               <td className="px-6 py-4 font-bold text-slate-700">{item.cliente || 'CONSUMIDOR FINAL'}</td>
-                               <td className="px-6 py-4 text-center">
-                                  <StatusBadge status={item.status} />
-                               </td>
-                               <td className="px-6 py-4 text-right text-slate-400 font-medium">
-                                  {new Date(item.createdAt).toLocaleDateString('pt-BR')}
-                               </td>
-                            </tr>
-                         ))}
-                      </tbody>
-                   </table>
-                </div>
-             </div>
-
-             <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 space-y-6">
-                <div className="space-y-1 text-center">
-                   <h3 className="text-lg font-black text-slate-900">Top Analistas</h3>
-                   <p className="text-xs text-slate-400 font-medium italic">Ranking de hoje</p>
-                </div>
-                <div className="space-y-4">
-                   {dashboardStats?.topAnalysts?.length > 0 ? dashboardStats.topAnalysts.map((analyst, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                         <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 bg-white rounded-xl flex items-center justify-center text-[10px] font-black text-indigo-600 shadow-sm border border-slate-200">
-                               #{i+1}
-                            </div>
-                            <span className="text-xs font-bold text-slate-700">{analyst.name}</span>
-                         </div>
-                         <div className="text-right">
-                            <p className="text-xs font-black text-indigo-600">{analyst.count}</p>
-                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Vistorias</p>
-                         </div>
-                      </div>
-                   )) : (
-                      <div className="py-12 text-center space-y-2">
-                         <Activity size={32} className="mx-auto text-slate-200" />
-                         <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">Nenhuma análise hoje</p>
-                      </div>
-                   )}
-                </div>
+                ))}
              </div>
           </section>
         </div>
@@ -320,53 +282,30 @@ export default function DashboardPage() {
   );
 }
 
-function KpiCard({ icon, label, value, color, trend }: any) {
-  const colors: any = {
-    blue: 'text-blue-600 bg-blue-50 border-blue-100',
-    orange: 'text-orange-600 bg-orange-50 border-orange-100',
-    emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
-    indigo: 'text-indigo-600 bg-indigo-50 border-indigo-100',
+
+function StatCard({ label, value, icon, color, trend }: any) {
+
+  const colorVariants: any = {
+    indigo: 'bg-indigo-600 shadow-indigo-100 text-white',
+    orange: 'bg-orange-500 shadow-orange-100 text-white',
+    emerald: 'bg-emerald-500 shadow-emerald-100 text-white',
   };
+
   return (
-    <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm space-y-4 transition-all hover:scale-[1.02] cursor-default group">
-       <div className="flex items-center justify-between">
-          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-inner ${colors[color]}`}>
-             {icon}
-          </div>
-          <div className="text-right">
-             <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-             <p className="text-2xl font-black text-slate-900 mt-1">{value}</p>
-          </div>
-       </div>
-       <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 bg-emerald-50 w-fit px-2 py-0.5 rounded-full">
-          <TrendingUp size={12} /> {trend}
-       </div>
+    <div className={`ovi-card p-8 flex items-center gap-6 group hover:scale-[1.02] transition-all duration-300`}>
+      <div className={`h-16 w-16 ${colorVariants[color]} rounded-[1.8rem] flex items-center justify-center shadow-2xl`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{label}</p>
+        <div className="flex items-baseline gap-2">
+           <h4 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">{value || 0}</h4>
+        </div>
+        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+           <TrendingUp size={10} className="text-emerald-500" /> {trend}
+        </p>
+
+      </div>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
-    FINALIZADO: 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    REPROVADO: 'bg-rose-50 text-rose-600 border-rose-100',
-    APROVADO_COM_RESSALVA: 'bg-orange-50 text-orange-600 border-orange-100',
-    EM_ANDAMENTO: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-    ENVIADO: 'bg-blue-50 text-blue-600 border-blue-100',
-    AGUARDANDO_COLETA: 'bg-slate-100 text-slate-500 border-slate-200',
-  };
-
-  const labels: any = {
-    FINALIZADO: 'APROVADO',
-    REPROVADO: 'REPROVADO',
-    APROVADO_COM_RESSALVA: 'RESSALVA',
-    EM_ANDAMENTO: 'ANÁLISE',
-    ENVIADO: 'ENVIADO',
-    AGUARDANDO_COLETA: 'CLIENTE',
-  };
-
-  return (
-    <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black tracking-widest border mx-auto ${styles[status] || styles.ENVIADO}`}>
-       {labels[status] || status}
-    </span>
   );
 }

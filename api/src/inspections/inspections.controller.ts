@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, UseGuards, Query } from '@nestjs/common';
+
 import { InspectionsService } from './inspections.service';
 import { CreateInspectionDto } from './dto/create-inspection.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -24,9 +25,13 @@ export class InspectionsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  findAll(@GetUser('tenantId') tenantId: string) {
-    return this.inspectionsService.findAll(tenantId);
+  findAll(
+    @GetUser('tenantId') tenantId: string,
+    @Query() filters: any,
+  ) {
+    return this.inspectionsService.findAll(tenantId, filters);
   }
+
 
   // Rota administrativa para ver detalhes (com tenantId)
   @Get('admin/:id')
@@ -40,6 +45,17 @@ export class InspectionsController {
   async findOnePublic(@Param('id') id: string) {
     return this.inspectionsService.findOnePublic(id);
   }
+
+  @Post('public/:id/mark-accessed')
+  markAsAccessed(@Param('id') id: string) {
+    return this.inspectionsService.markAsAccessed(id);
+  }
+
+  @Post('public/:id/mark-started')
+  markAsStarted(@Param('id') id: string) {
+    return this.inspectionsService.markAsStarted(id);
+  }
+
 
   @Post(':id/photos')
   // Endpoint público para o cliente enviar fotos
@@ -74,5 +90,3 @@ export class InspectionsController {
     return this.inspectionsService.getDashboardStats(tenantId);
   }
 }
-
-

@@ -1,158 +1,79 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AnalysisStatus } from '../common/enums';
 
 @Injectable()
 export class QueueService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
-  // Lista vistorias aguardando análise (em aberto ou assumidas)
-  async getAvailable(tenantId: string) {
+  // Busca fila disponível (Não assumida ou assumida pelo próprio usuário)
+  async getAvailable(tenantId: string, userId: string) {
     return this.prisma.queue.findMany({
       where: {
         inspection: { tenantId },
-        status: {
-          in: [AnalysisStatus.EM_ANDAMENTO]
-        }
+        status: 'EM_ANDAMENTO',
+        OR: [
+          { assignedToId: null },
+          { assignedToId: userId }
+        ]
       },
       include: {
         inspection: {
-          include: {
-            createdBy: {
-              select: { name: true }
-            }
+          select: {
+            id: true,
+            protocol: true,
+            placa: true,
+            cliente: true,
+            createdAt: true,
+            updatedAt: true,
           }
         },
         assignedTo: {
-          select: { name: true }
+          select: { id: true, name: true }
         }
       },
       orderBy: { updatedAt: 'asc' }
     });
   }
 
-  // Lista vistorias já finalizadas
-  async getFinished(tenantId: string) {
-    return this.prisma.queue.findMany({
-      where: {
-        inspection: { tenantId },
-        status: {
-          in: [AnalysisStatus.FINALIZADO, AnalysisStatus.REPROVADO, AnalysisStatus.APROVADO_COM_RESSALVA]
-        }
-      },
-
-      include: {
-        inspection: {
-          include: {
-            createdBy: { select: { name: true } }
-          }
-        },
-        assignedTo: {
-          select: { name: true }
-        }
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 50
-    });
-  }
-
-  // Lista vistorias que estão aguardando nova coleta do cliente
-  async getPendingCollection(tenantId: string) {
-    return this.prisma.queue.findMany({
-      where: {
-        inspection: { tenantId },
-        status: AnalysisStatus.NOVA_COLETA
-      },
-      include: {
-        inspection: {
-          include: {
-            createdBy: { select: { name: true } }
-          }
-        },
-        assignedTo: {
-          select: { name: true }
-        }
-      },
-      orderBy: { updatedAt: 'desc' }
-    });
-  }
-
-  // Estatísticas de produtividade do dia
-  async getDailyStats(tenantId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const stats = await this.prisma.queue.groupBy({
-      by: ['assignedToId'],
-      where: {
-        inspection: { tenantId },
-        status: { in: [AnalysisStatus.FINALIZADO, AnalysisStatus.REPROVADO, AnalysisStatus.NOVA_COLETA, AnalysisStatus.APROVADO_COM_RESSALVA] },
-        updatedAt: { gte: today }
-      },
-
-      _count: {
-        _all: true
-      }
-    });
-
-    // Busca os nomes dos analistas
-    const results = await Promise.all(stats.map(async (s) => {
-      if (!s.assignedToId) return null;
-      const user = await this.prisma.user.findUnique({ where: { id: s.assignedToId }, select: { name: true } });
-      return {
-        name: user?.name || 'Desconhecido',
-        count: s._count._all
-      };
-    }));
-
-    return results.filter(r => r !== null).sort((a, b) => b.count - a.count);
-  }
-
-  // Estatísticas pessoais do analista logado
-  async getMyStats(userId: string, tenantId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const count = await this.prisma.queue.count({
-      where: {
-        assignedToId: userId,
-        inspection: { tenantId },
-        status: { in: [AnalysisStatus.FINALIZADO, AnalysisStatus.REPROVADO, AnalysisStatus.NOVA_COLETA, AnalysisStatus.APROVADO_COM_RESSALVA] },
-        updatedAt: { gte: today }
-      }
-
-    });
-
-    return { count };
-  }
-
-  // Analista assume uma vistoria
+  // Assumir uma vistoria para análise
   async assign(inspectionId: string, userId: string, tenantId: string) {
-    const queueItem = await this.prisma.queue.findFirst({
-      where: { inspectionId, inspection: { tenantId } }
+    const item = await this.prisma.queue.findUnique({
+      where: { inspectionId }
     });
 
-    if (!queueItem) throw new NotFoundException('Item não encontrado');
+    if (!item) throw new NotFoundException('Fila não encontrada');
+
+    // Se já estiver assumida por outra pessoa
+    if (item.assignedToId && item.assignedToId !== userId) {
+      throw new BadRequestException('Esta vistoria já está sendo analisada por outro colaborador');
+    }
+
+    // Atualiza status da vistoria para EM_ANDAMENTO
+    await this.prisma.inspection.update({
+      where: { id: inspectionId },
+      data: { status: 'EM_ANDAMENTO' }
+    });
 
     return this.prisma.queue.update({
-      where: { id: queueItem.id },
+      where: { inspectionId },
       data: {
         assignedToId: userId,
         lockedAt: new Date()
-      }
+      },
+      include: { assignedTo: true }
     });
   }
 
-  // Libera a vistoria de volta para a fila
+  // Devolver para a mesa (liberar análise)
   async release(inspectionId: string, tenantId: string) {
-    const queueItem = await this.prisma.queue.findFirst({
-      where: { inspectionId, inspection: { tenantId } }
+    // Volta o status da vistoria para ENVIADO (Aguardando Análise)
+    await this.prisma.inspection.update({
+      where: { id: inspectionId },
+      data: { status: 'ENVIADO' }
     });
 
-    if (!queueItem) throw new NotFoundException('Item não encontrado');
-
     return this.prisma.queue.update({
-      where: { id: queueItem.id },
+      where: { inspectionId },
       data: {
         assignedToId: null,
         lockedAt: null
@@ -160,26 +81,127 @@ export class QueueService {
     });
   }
 
-  // Finaliza a análise
-  async finish(inspectionId: string, status: AnalysisStatus, tenantId: string, comment?: string) {
-    const queueItem = await this.prisma.queue.findFirst({
-      where: { inspectionId, inspection: { tenantId } }
-    });
 
-    if (!queueItem) throw new NotFoundException('Item não encontrado');
+
+  // Finalizar análise
+  async finish(inspectionId: string, status: string, tenantId: string, comment?: string, rejectedPhotoIds?: string[]) {
+    // Se for solicitado nova coleta, deleta as fotos rejeitadas para que o cliente possa refazê-las
+    if (status === 'NOVA_COLETA' && rejectedPhotoIds && rejectedPhotoIds.length > 0) {
+      await this.prisma.inspectionPhoto.deleteMany({
+        where: {
+          id: { in: rejectedPhotoIds },
+          inspectionId
+        }
+      });
+    }
 
     await this.prisma.inspection.update({
       where: { id: inspectionId },
       data: { 
-        status,
+        status: status as any,
         observacoes: comment 
       }
     });
 
+    // Remove da fila de análise (status muda para concluído)
     return this.prisma.queue.update({
-      where: { id: queueItem.id },
-      data: { status, lockedAt: null }
+      where: { inspectionId },
+      data: { 
+        status: 'CONCLUIDO',
+        lockedAt: null 
+      }
     });
   }
 
+
+  async getFinished(tenantId: string) {
+    return this.prisma.queue.findMany({
+      where: {
+        inspection: { tenantId },
+        status: 'CONCLUIDO'
+      },
+      include: {
+        inspection: true,
+        assignedTo: true
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+  }
+
+  async getPendingCollection(tenantId: string) {
+    return this.prisma.queue.findMany({
+      where: {
+        inspection: { 
+          tenantId,
+          status: 'NOVA_COLETA'
+        }
+      },
+      include: {
+        inspection: true
+      },
+    });
+  }
+
+  async getDailyStats(tenantId: string) {
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const stats = await this.prisma.inspection.groupBy({
+      by: ['status'],
+      where: {
+        tenantId,
+        updatedAt: { gte: today }
+      },
+      _count: { _all: true }
+    });
+
+    return stats.map(s => ({ name: s.status, count: s._count._all }));
+  }
+
+  async getMyStats(userId: string, tenantId: string) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Vistorias aprovadas por mim hoje
+    const approvedToday = await this.prisma.inspection.count({
+      where: {
+        queue: {
+          assignedToId: userId,
+          status: 'CONCLUIDO'
+        },
+        status: { in: ['FINALIZADO', 'APROVADO_COM_RESSALVA', 'APROVADO'] },
+        updatedAt: { gte: today }
+      }
+    });
+
+    // Vistorias reprovadas por mim hoje
+    const rejectedToday = await this.prisma.inspection.count({
+      where: {
+        queue: {
+          assignedToId: userId,
+          status: 'CONCLUIDO'
+        },
+        status: 'REPROVADO',
+        updatedAt: { gte: today }
+      }
+    });
+
+    // Vistorias que estou analisando agora
+    const myCurrent = await this.prisma.queue.count({
+      where: {
+        assignedToId: userId,
+        status: 'EM_ANDAMENTO'
+      }
+    });
+
+    return {
+      approvedToday,
+      rejectedToday,
+      finishedToday: approvedToday + rejectedToday,
+      myCurrent
+    };
+  }
+
 }
+

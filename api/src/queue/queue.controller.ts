@@ -16,8 +16,11 @@ export class QueueController {
 
   @Get('available')
   @Roles(UserRole.ANALYST, UserRole.SUPERVISOR, UserRole.ADMIN)
-  getAvailable(@GetUser('tenantId') tenantId: string) {
-    return this.queueService.getAvailable(tenantId);
+  getAvailable(
+    @GetUser('tenantId') tenantId: string,
+    @GetUser('userId') userId: string,
+  ) {
+    return this.queueService.getAvailable(tenantId, userId);
   }
 
   @Get('finished')
@@ -76,9 +79,11 @@ export class QueueController {
     @Param('inspectionId') inspectionId: string,
     @Body('status') status: AnalysisStatus,
     @Body('comment') comment: string,
+    @Body('rejectedPhotoIds') rejectedPhotoIds: string[],
     @GetUser('tenantId') tenantId: string,
   ) {
-    return this.queueService.finish(inspectionId, status, tenantId, comment);
+    return this.queueService.finish(inspectionId, status, tenantId, comment, rejectedPhotoIds);
   }
+
 
 }

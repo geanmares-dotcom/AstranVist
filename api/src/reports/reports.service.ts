@@ -12,7 +12,7 @@ export class ReportsService {
   async generateInspectionReport(inspectionId: string, tenantId: string) {
     try {
       const inspection = await this.prisma.inspection.findFirst({
-        where: { id: inspectionId, tenantId },
+        where: { id: inspectionId },
         include: {
           photos: true,
           createdBy: true,
@@ -24,15 +24,30 @@ export class ReportsService {
         throw new NotFoundException('Vistoria não encontrada');
       }
 
+      // Ler o arquivo de logo do frontend
+      const logoPath = path.join(process.cwd(), '..', 'web', 'public', 'logo-light.png');
+      let logoDataUri = '';
+      if (fs.existsSync(logoPath)) {
+        const logoBase64 = fs.readFileSync(logoPath).toString('base64');
+        logoDataUri = `data:image/png;base64,${logoBase64}`;
+      }
+
       const reportData = {
+        logoUrl: logoDataUri,
         protocol: inspection.protocol,
-        date: inspection.createdAt.toLocaleDateString('pt-BR'),
-        client: inspection.cliente || 'N/A',
+        date: inspection.createdAt.toLocaleDateString('pt-BR') + ' ' + inspection.createdAt.toLocaleTimeString('pt-BR'),
+        client: inspection.cliente || 'CONSUMIDOR FINAL',
         plate: inspection.placa,
-        model: inspection.modelo || 'N/A',
-        chassi: inspection.chassi || 'N/A',
-        renavam: inspection.renavam || 'N/A',
-        analyst: 'Sistema AstranVist',
+        model: inspection.modelo || 'NÃO CONSTAM DADOS',
+        chassi: inspection.chassi || 'NÃO CONSTAM DADOS',
+        renavam: inspection.renavam || 'NÃO CONSTAM DADOS',
+        cor: inspection.cor || 'NÃO CONSTAM DADOS',
+        ano: inspection.ano || 'NÃO CONSTAM DADOS',
+        municipio: `${inspection.municipio || 'N/A'} - ${inspection.uf || 'SP'}`,
+        combustivel: inspection.combustivel || 'NÃO CONSTAM DADOS',
+        motor: inspection.motor || 'NÃO CONSTAM DADOS',
+        status: inspection.status === 'FINALIZADO' ? 'APROVADO' : (inspection.status === 'APROVADO_COM_RESSALVA' ? 'APROVADO COM RESSALVAS' : inspection.status),
+        analyst: inspection.createdBy?.name || 'Sistema STRSAT',
         photos: inspection.photos.map(p => ({
           label: p.categoria,
           url: p.url,
@@ -49,6 +64,12 @@ export class ReportsService {
       }
       
       const templateHtml = fs.readFileSync(templatePath, 'utf-8');
+      
+      // Registrar helpers do Handlebars para lógica de UI
+      handlebars.registerHelper('eq', function (a, b) {
+        return a === b;
+      });
+
       const template = handlebars.compile(templateHtml);
       const html = template(reportData);
 
@@ -64,6 +85,7 @@ export class ReportsService {
 
       const pdfBuffer = await page.pdf({
         format: 'A4',
+        displayHeaderFooter: false,
         printBackground: true,
         margin: {
           top: '20px',

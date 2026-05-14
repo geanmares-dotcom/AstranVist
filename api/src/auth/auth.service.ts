@@ -93,6 +93,28 @@ export class AuthService {
       orderBy: { name: 'asc' }
     });
   }
+
+  async updateProfile(userId: string, data: { name?: string; email?: string }) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: { id: true, name: true, email: true, role: true }
+    });
+  }
+
+  async changePassword(userId: string, oldPass: string, newPass: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !(await bcrypt.compare(oldPass, user.password))) {
+      throw new UnauthorizedException('Senha atual incorreta');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPass, 10);
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+  }
 }
+
 
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Patch } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,4 +28,14 @@ export class TenantsController {
   findOne(@Param('id') id: string) {
     return this.tenantsService.findOne(id);
   }
+
+  @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  update(
+    @Param('id') id: string,
+    @Body() data: { name?: string }
+  ) {
+    return this.tenantsService.update(id, data);
+  }
 }
+

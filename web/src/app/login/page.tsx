@@ -15,7 +15,7 @@ import {
 import api from '../../services/api';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@astranvist.com');
+  const [email, setEmail] = useState('admin@strsat.com.br');
   const [password, setPassword] = useState('admin123');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -44,20 +44,17 @@ export default function LoginPage() {
       <div className="w-full max-w-[1100px] grid grid-cols-1 lg:grid-cols-2 bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl border border-white/5 animate-in">
         
         {/* Branding Side */}
-        <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-blue-600 to-indigo-700 relative overflow-hidden">
+        <div className="hidden lg:flex flex-col justify-between p-12 bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] relative overflow-hidden">
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
           
-          <div className="relative z-10 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20">
-              <Car size={24} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Astran<span className="opacity-60">Vist</span></h1>
+          <div className="relative z-10 flex items-start group">
+            <img src="/logo-dark.png" alt="STRSAT Gestão de Risco" className="h-20 object-contain drop-shadow-2xl" />
           </div>
 
           <div className="relative z-10">
-            <h2 className="text-4xl font-extrabold text-white mb-6 leading-tight">
-              A inteligência que sua <br /> 
-              <span className="text-blue-200">vistoria precisa.</span>
+            <h2 className="text-4xl font-extrabold text-white mb-6 leading-tight italic">
+              Gestão de Risco <br /> 
+              <span className="text-[var(--accent)]">inteligente.</span>
             </h2>
             <div className="space-y-4">
               <FeatureItem icon={<CheckCircle2 size={18} />} text="Análise automática por IA" />
@@ -67,7 +64,7 @@ export default function LoginPage() {
           </div>
 
           <div className="relative z-10 text-blue-200/60 text-xs font-medium">
-            © 2026 AstranVist Technologies. Todos os direitos reservados.
+            © 2026 STRSAT. Todos os direitos reservados.
           </div>
         </div>
 
@@ -87,7 +84,7 @@ export default function LoginPage() {
                   type="email" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-field pl-12"
+                  className="input-field !pl-12"
                   placeholder="nome@empresa.com"
                   required
                 />
@@ -102,7 +99,7 @@ export default function LoginPage() {
                   type="password" 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field pl-12"
+                  className="input-field !pl-12"
                   placeholder="••••••••"
                   required
                 />

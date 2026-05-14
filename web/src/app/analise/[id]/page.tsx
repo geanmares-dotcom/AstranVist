@@ -10,12 +10,14 @@ import {
   ShieldAlert,
   Camera,
   Check,
-  Info
+  Info,
+  FileText
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { inspectionService } from '../../../services/inspectionService';
 import { queueService } from '../../../services/queueService';
+import api from '../../../services/api';
 import Sidebar from '../../../components/Sidebar';
 
 export default function DetalheAnalisePage() {
@@ -29,10 +31,13 @@ export default function DetalheAnalisePage() {
   useEffect(() => {
     if (id) {
       queueService.assign(id).catch(err => {
-         console.error('Erro ao assumir vistoria:', err);
+         const message = err.response?.data?.message || 'Esta vistoria já está sendo analisada.';
+         alert(message);
+         router.push('/analise');
       });
     }
-  }, [id]);
+  }, [id, router]);
+
 
   const { data: inspection, isLoading } = useQuery({
     queryKey: ['inspection', id],
@@ -42,7 +47,7 @@ export default function DetalheAnalisePage() {
   const handleFinish = async (status: string) => {
     setLoadingAction(true);
     try {
-      await queueService.finish(id, status, comment);
+      await queueService.finish(id, status, comment, status === 'NOVA_COLETA' ? selectedPhotos : []);
       router.push('/analise');
     } catch (err) {
       alert('Erro ao finalizar análise');
@@ -50,6 +55,20 @@ export default function DetalheAnalisePage() {
       setLoadingAction(false);
     }
   };
+
+  const handleRelease = async () => {
+    setLoadingAction(true);
+    try {
+      await queueService.release(id);
+      router.push('/analise');
+    } catch (err) {
+      alert('Erro ao devolver vistoria para a mesa');
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+
 
 
   const togglePhotoSelection = (photoId: string) => {
@@ -61,10 +80,10 @@ export default function DetalheAnalisePage() {
   };
 
   if (isLoading) return (
-    <div className="flex h-screen items-center justify-center bg-slate-50">
+    <div className="flex h-screen items-center justify-center bg-[var(--bg-main)]">
        <div className="flex flex-col items-center gap-4">
           <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-bold animate-pulse uppercase tracking-widest text-[10px]">Carregando Evidências...</p>
+          <p className="text-slate-400 dark:text-slate-500 font-bold animate-pulse uppercase tracking-widest text-[10px]">Carregando Evidências...</p>
        </div>
     </div>
   );
@@ -72,43 +91,53 @@ export default function DetalheAnalisePage() {
   if (!inspection) return <div>Vistoria não encontrada</div>;
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden font-sans">
+    <div className="flex h-screen bg-[var(--bg-main)] text-slate-800 dark:text-slate-200 overflow-hidden font-sans">
       <Sidebar />
 
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header de Ações */}
-        <header className="h-20 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 relative z-30">
+        <header className="h-20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 px-8 flex items-center justify-between shrink-0 relative z-30">
           <div className="flex items-center gap-4">
-             <button onClick={() => router.back()} className="p-2 hover:bg-slate-50 rounded-full text-slate-400 transition-colors">
+             <button onClick={() => router.back()} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 transition-colors">
                 <ChevronLeft size={24} />
              </button>
              <div>
-                <h1 className="text-xl font-black text-slate-800 tracking-tight">Galeria de Evidências</h1>
+                <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Galeria de Evidências</h1>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">Protocolo: {inspection.protocol}</p>
              </div>
           </div>
 
           <div className="flex items-center gap-3">
              <div className="hidden lg:flex flex-col items-end mr-4">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status Atual</span>
+                <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status Atual</span>
                 <span className="text-sm font-bold text-orange-600">Em Análise Técnica</span>
              </div>
-             <button className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 px-5 py-2.5 rounded-xl font-bold text-xs transition-all uppercase tracking-widest">
-                <ArrowLeftRight size={16} /> Revezar
+             <button 
+               onClick={handleRelease}
+               disabled={loadingAction}
+               className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 px-5 py-2.5 rounded-xl font-bold text-xs transition-all uppercase tracking-widest disabled:opacity-50"
+             >
+                <ArrowLeftRight size={16} /> Devolver
              </button>
-             <button className="flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white px-6 py-2.5 rounded-xl font-bold text-xs transition-all uppercase tracking-widest shadow-lg shadow-slate-200">
-                <Download size={16} /> Baixar Fotos
+             <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition-all uppercase tracking-widest shadow-lg shadow-indigo-100 dark:shadow-none">
+                <Download size={16} /> Fotos
+             </button>
+             <button 
+               onClick={() => window.open(`${api.defaults.baseURL}/reports/inspection/${id}`, '_blank')}
+               className="flex items-center gap-2 bg-slate-900 dark:bg-black hover:bg-slate-800 dark:hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-xs transition-all uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none"
+             >
+                <FileText size={16} className="text-emerald-400" /> Laudo PDF
              </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-[#f8fafc]">
+        <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-transparent">
           
           {/* Seção de Dados Técnicos (Estilo OVI) */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 max-w-[1400px] mx-auto">
              {/* Card 1: Dados do Veículo */}
-             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-[#0f172a] px-6 py-4 flex items-center justify-between">
+             <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm border border-[var(--border-color)] overflow-hidden">
+                <div className="bg-slate-900 dark:bg-black px-6 py-4 flex items-center justify-between">
                    <h3 className="text-white font-bold text-sm uppercase tracking-widest">Dados do veículo</h3>
                    <Info size={16} className="text-white/40" />
                 </div>
@@ -127,15 +156,15 @@ export default function DetalheAnalisePage() {
                    <DataField label="Renavam" value={inspection.renavam || '0'} />
                 </div>
                 <div className="px-6 pb-6 pt-2">
-                   <p className="text-[10px] text-slate-400 italic">
+                   <p className="text-[10px] text-slate-400 dark:text-slate-500 italic">
                       *Os dados da <span className="font-bold">placa</span> e do <span className="font-bold">chassi</span> foram validados com base nas informações do CRLV enviado pelo cliente.
                    </p>
                 </div>
              </div>
 
              {/* Card 2: Informações Adicionais */}
-             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-[#0f172a] px-6 py-4">
+             <div className="bg-[var(--bg-card)] rounded-2xl shadow-sm border border-[var(--border-color)] overflow-hidden">
+                <div className="bg-slate-900 dark:bg-black px-6 py-4">
                    <h3 className="text-white font-bold text-sm uppercase tracking-widest">Informações Adicionais</h3>
                 </div>
                 <div className="p-6 grid grid-cols-2 gap-y-6 gap-x-8">
@@ -157,10 +186,10 @@ export default function DetalheAnalisePage() {
              {/* Galeria de Fotos */}
              <div className="flex-1 space-y-6">
                 <div className="flex items-center justify-between">
-                   <h2 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                   <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                       <Camera className="text-indigo-600" /> Capturas de Evidências
                    </h2>
-                   <span className="bg-white px-4 py-1.5 rounded-full border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                   <span className="bg-[var(--bg-card)] px-4 py-1.5 rounded-full border border-[var(--border-color)] text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                       {inspection.photos.length} Fotos Registradas
                    </span>
                 </div>
@@ -205,24 +234,26 @@ export default function DetalheAnalisePage() {
 
              {/* Sidebar de Conclusão */}
              <div className="w-full lg:w-96 shrink-0">
-                <div className="ovi-card p-8 sticky top-8 space-y-8 bg-white border-2 border-indigo-50">
+                <div className="bg-[var(--bg-card)] p-8 rounded-2xl shadow-xl border-2 border-[var(--border-color)] sticky top-8 space-y-8">
                    <div className="space-y-2">
-                      <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Parecer Técnico</h3>
-                      <p className="text-xs text-slate-400 font-medium italic">Insira observações relevantes para o laudo final.</p>
+                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Parecer Técnico</h3>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium italic">Insira observações relevantes para o laudo final.</p>
                    </div>
 
                    <textarea 
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    className="input-field min-h-[180px] resize-none text-sm p-5 bg-slate-50 border-slate-200"
+                    className="w-full rounded-[1.5rem] min-h-[180px] resize-none text-sm p-5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+
                     placeholder="Descreva aqui os detalhes da análise..."
                    />
+
 
                    <div className="space-y-2">
                       <button 
                         disabled={loadingAction}
                         onClick={() => handleFinish('FINALIZADO')}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-100 uppercase text-[11px] tracking-widest disabled:opacity-50"
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-100 dark:shadow-none uppercase text-[11px] tracking-widest disabled:opacity-50"
                       >
                          <CheckCircle size={18} /> Aprovar Vistoria
                       </button>
@@ -231,7 +262,7 @@ export default function DetalheAnalisePage() {
                         <button 
                           disabled={loadingAction}
                           onClick={() => handleFinish('APROVADO_COM_RESSALVA')}
-                          className="bg-slate-900 hover:bg-slate-800 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
+                          className="bg-slate-900 dark:bg-black hover:bg-slate-800 dark:hover:bg-slate-950 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
                         >
                            <ShieldAlert size={14} className="text-orange-400" /> Ressalva
                         </button>
@@ -239,7 +270,7 @@ export default function DetalheAnalisePage() {
                         <button 
                           disabled={loadingAction}
                           onClick={() => handleFinish('REPROVADO')}
-                          className="bg-white border border-rose-200 hover:border-rose-500 text-rose-500 font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
+                          className="bg-[var(--bg-card)] border border-rose-200 dark:border-rose-900/30 hover:border-rose-500 text-rose-500 font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
                         >
                            <XCircle size={14} /> Reprovar
                         </button>
@@ -247,11 +278,11 @@ export default function DetalheAnalisePage() {
                    </div>
 
                    {selectedPhotos.length > 0 && (
-                      <div className="pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-bottom-2">
+                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2">
                          <button 
                           disabled={loadingAction}
                           onClick={() => handleFinish('NOVA_COLETA')}
-                          className="w-full bg-indigo-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100"
+                          className="w-full bg-indigo-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 dark:shadow-none"
                          >
                             Solicitar Nova Coleta ({selectedPhotos.length})
                          </button>
@@ -272,12 +303,13 @@ function DataField({ label, value, verified = false }: { label: string, value: a
   return (
     <div className="space-y-1">
        <div className="flex items-center gap-1.5">
-          <span className="text-[11px] font-bold text-slate-900 tracking-tight">{label}</span>
+          <span className="text-[11px] font-bold text-slate-900 dark:text-white tracking-tight">{label}</span>
           {verified && <Check size={12} className="text-emerald-500 stroke-[4px]" />}
        </div>
-       <div className="text-[12px] font-medium text-slate-500 uppercase tracking-tight">
+       <div className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-tight">
           {value || 'NÃO CONSTAM DADOS'}
        </div>
     </div>
   );
 }
+

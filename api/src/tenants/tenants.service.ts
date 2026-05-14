@@ -36,4 +36,12 @@ export class TenantsService {
       include: { users: true }
     });
   }
+
+  async update(id: string, data: { name?: string }) {
+    return this.prisma.tenant.update({
+      where: { id },
+      data
+    });
+  }
 }
+

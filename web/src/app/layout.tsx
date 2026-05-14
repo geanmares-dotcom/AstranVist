@@ -6,7 +6,7 @@ import Providers from './providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'AstranVist SaaS | Gestão de Vistorias',
+  title: 'STRSAT | Gestão de Risco',
   description: 'Plataforma moderna para gerenciamento de vistorias veiculares',
 }
 

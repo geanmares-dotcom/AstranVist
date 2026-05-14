@@ -189,7 +189,7 @@ export default function UsuariosPage() {
                        <input 
                          type="email" 
                          className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
-                         placeholder="analista@astranvist.com"
+                         placeholder="analista@strsat.com.br"
                          value={formData.email}
                          onChange={e => setFormData({...formData, email: e.target.value})}
                        />

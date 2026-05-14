@@ -42,4 +42,23 @@ export class AuthController {
     // Reutilizando lógica para listar usuários do tenant
     return this.authService.getUsersByTenant(tenantId);
   }
+
+  @Post('profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(
+    @GetUser('userId') userId: string,
+    @Body() data: { name?: string; email?: string }
+  ) {
+    return this.authService.updateProfile(userId, data);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  changePassword(
+    @GetUser('userId') userId: string,
+    @Body() data: { oldPass: string; newPass: string }
+  ) {
+    return this.authService.changePassword(userId, data.oldPass, data.newPass);
+  }
 }
+

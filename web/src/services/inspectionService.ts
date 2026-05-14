@@ -11,10 +11,11 @@ export interface Inspection {
 }
 
 export const inspectionService = {
-  getAll: async () => {
-    const response = await api.get<Inspection[]>('/inspections');
+  getAll: async (filters?: any) => {
+    const response = await api.get<Inspection[]>('/inspections', { params: filters });
     return response.data;
   },
+
   
   getById: async (id: string) => {
     const response = await api.get<Inspection>(`/inspections/admin/${id}`);
