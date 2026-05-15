@@ -15,6 +15,7 @@ import {
   Users as UsersIcon
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import api from '../../services/api';
 import Sidebar from '../../components/Sidebar';
 
@@ -67,10 +68,10 @@ export default function UsuariosPage() {
        queryClient.invalidateQueries({ queryKey: ['users'] });
        setIsModalOpen(false);
        setFormData({ name: '', email: '', password: '', role: 'ANALYST' });
-       alert('Usuário criado com sucesso!');
+       toast.success('Usuário criado com sucesso!');
     },
     onError: (err: any) => {
-       alert(err.response?.data?.message || 'Erro ao criar usuário');
+       toast.error(err.response?.data?.message || 'Erro ao criar usuário');
     }
   });
 

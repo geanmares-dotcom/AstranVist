@@ -12,24 +12,49 @@ import {
   CheckCircle2,
   Globe
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import api from '../../services/api';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@strsat.com.br');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    const savedEmail = localStorage.getItem('strsat_remembered_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await api.post('/auth/login', { email, password });
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      router.push('/');
+      if (forgotPasswordMode) {
+        // Simulação de envio de recuperação de senha
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        toast.success(`Um link de recuperação foi enviado para: ${email}`);
+        setForgotPasswordMode(false);
+      } else {
+        const response = await api.post('/auth/login', { email, password });
+        localStorage.setItem('token', response.data.access_token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        if (rememberMe) {
+          localStorage.setItem('strsat_remembered_email', email);
+        } else {
+          localStorage.removeItem('strsat_remembered_email');
+        }
+        
+        router.push('/');
+      }
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao realizar login');
+      toast.error(err.response?.data?.message || (forgotPasswordMode ? 'Erro ao enviar recuperação' : 'Erro ao realizar login'));
     } finally {
       setLoading(false);
     }
@@ -71,8 +96,14 @@ export default function LoginPage() {
         {/* Login Form Side */}
         <div className="p-8 lg:p-16 flex flex-col justify-center bg-slate-950/50">
           <div className="mb-10 text-center lg:text-left">
-            <h3 className="text-3xl font-extrabold text-white mb-2 tracking-tight">Login Portal</h3>
-            <p className="text-slate-400 font-medium">Insira suas credenciais para acessar a plataforma.</p>
+            <h3 className="text-3xl font-extrabold text-white mb-2 tracking-tight">
+              {forgotPasswordMode ? 'Recuperar Senha' : 'Login Portal'}
+            </h3>
+            <p className="text-slate-400 font-medium">
+              {forgotPasswordMode 
+                ? 'Informe seu e-mail para receber as instruções de recuperação.' 
+                : 'Insira suas credenciais para acessar a plataforma.'}
+            </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
@@ -85,47 +116,68 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field !pl-12"
-                  placeholder="nome@empresa.com"
+                  placeholder="exemplo@empresa.com.br"
                   required
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Senha de Acesso</label>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={20} />
-                <input 
-                  type="password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field !pl-12"
-                  placeholder="••••••••"
-                  required
-                />
+            {!forgotPasswordMode && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Senha de Acesso</label>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-blue-500 transition-colors" size={20} />
+                  <input 
+                    type="password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="input-field !pl-12"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            <div className="flex items-center justify-between text-xs pt-2">
-              <label className="flex items-center gap-2 text-slate-400 cursor-pointer hover:text-white transition-colors">
-                <input type="checkbox" className="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0 focus:ring-offset-0" />
-                Lembrar de mim
-              </label>
-              <a href="#" className="font-bold text-blue-500 hover:text-blue-400 transition-colors">Esqueceu a senha?</a>
-            </div>
+            {!forgotPasswordMode && (
+              <div className="flex items-center justify-between text-xs pt-2 animate-in fade-in">
+                <label className="flex items-center gap-2 text-slate-400 cursor-pointer hover:text-white transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="rounded bg-slate-900 border-slate-700 text-blue-600 focus:ring-0 focus:ring-offset-0" 
+                  />
+                  Lembrar de mim
+                </label>
+                <button type="button" onClick={() => setForgotPasswordMode(true)} className="font-bold text-blue-500 hover:text-blue-400 transition-colors">Esqueceu a senha?</button>
+              </div>
+            )}
 
             <button 
               type="submit" 
               disabled={loading}
               className="btn-ovi-primary w-full py-4 text-sm uppercase tracking-widest mt-4"
             >
-              {loading ? <Loader2 className="animate-spin" /> : <>Entrar no Sistema <ArrowRight size={18} /></>}
+              {loading ? <Loader2 className="animate-spin mx-auto" /> : (
+                forgotPasswordMode ? <>Enviar Link de Recuperação <ArrowRight size={18} /></> : <>Entrar no Sistema <ArrowRight size={18} /></>
+              )}
             </button>
+
+            {forgotPasswordMode && (
+              <button 
+                type="button"
+                onClick={() => setForgotPasswordMode(false)}
+                className="w-full text-center text-xs font-bold text-slate-400 hover:text-white transition-colors mt-4"
+              >
+                Voltar para o Login
+              </button>
+            )}
           </form>
 
           <div className="mt-10 text-center lg:text-left">
             <p className="text-sm text-slate-500">
-              Precisa de ajuda? <a href="#" className="font-bold text-blue-500 hover:text-blue-400 transition-colors">Fale com o suporte</a>
+              Precisa de ajuda? <a href="tel:08000276130" className="font-bold text-blue-500 hover:text-blue-400 transition-colors">Fale com o suporte (0800 027 6130)</a>
             </p>
           </div>
         </div>

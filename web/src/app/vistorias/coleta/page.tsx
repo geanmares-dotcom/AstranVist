@@ -14,6 +14,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { inspectionService } from '../../../services/inspectionService';
 import api from '../../../services/api';
 
@@ -58,7 +59,7 @@ export default function MobileColetaSimulation() {
         setInspectionId(response.data.id);
         setStep(1);
       } catch (err) {
-        alert('Erro ao iniciar vistoria. Verifique o console.');
+        toast.error('Erro ao iniciar vistoria. Verifique o console.');
         console.error(err);
       } finally {
         setLoading(false);
@@ -77,7 +78,7 @@ export default function MobileColetaSimulation() {
         await api.post(`/inspections/${inspectionId}/photos`, { photos: photoData });
         setStep(2);
       } catch (err) {
-        alert('Erro ao enviar fotos.');
+        toast.error('Erro ao enviar fotos.');
       } finally {
         setLoading(false);
       }

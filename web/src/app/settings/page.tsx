@@ -15,8 +15,11 @@ import {
   Globe,
   Zap,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Sun,
+  Moon
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Sidebar from '../../components/Sidebar';
 import { authService } from '../../services/authService';
 import { tenantService } from '../../services/tenantService';
@@ -73,7 +76,7 @@ export default function SettingsPage() {
         setUser(updatedUser);
       } else if (activeTab === 'security') {
         if (securityForm.newPass !== securityForm.confirmPass) {
-          alert('As senhas não coincidem');
+          toast.error('As senhas digitadas não coincidem!');
           return;
         }
         await authService.changePassword(securityForm.oldPass, securityForm.newPass);
@@ -82,10 +85,12 @@ export default function SettingsPage() {
         await tenantService.update(user.tenantId, { name: orgForm.name });
       }
       
+      await new Promise(r => setTimeout(r, 1000));
       setSuccess(true);
+      toast.success('Configurações atualizadas com sucesso!');
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Erro ao salvar alterações');
+      toast.error(err.response?.data?.message || 'Erro ao salvar configurações');
     } finally {
       setSaving(false);
     }

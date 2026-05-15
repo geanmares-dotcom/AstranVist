@@ -117,7 +117,10 @@ export class QueueService {
   async getFinished(tenantId: string) {
     return this.prisma.queue.findMany({
       where: {
-        inspection: { tenantId },
+        inspection: { 
+          tenantId,
+          status: { not: 'NOVA_COLETA' }
+        },
         status: 'CONCLUIDO'
       },
       include: {

@@ -19,6 +19,7 @@ import { inspectionService } from '../../../services/inspectionService';
 import { queueService } from '../../../services/queueService';
 import api from '../../../services/api';
 import Sidebar from '../../../components/Sidebar';
+import toast from 'react-hot-toast';
 
 export default function DetalheAnalisePage() {
   const { id } = useParams() as { id: string };
@@ -32,7 +33,7 @@ export default function DetalheAnalisePage() {
     if (id) {
       queueService.assign(id).catch(err => {
          const message = err.response?.data?.message || 'Esta vistoria já está sendo analisada.';
-         alert(message);
+         toast.error(message);
          router.push('/analise');
       });
     }
@@ -45,12 +46,29 @@ export default function DetalheAnalisePage() {
   });
 
   const handleFinish = async (status: string) => {
+    if ((status === 'APROVADO_COM_RESSALVA' || status === 'REPROVADO' || status === 'NOVA_COLETA') && !comment.trim()) {
+      toast('Parecer Técnico obrigatório para esta ação.', { 
+        icon: '⚠️',
+        position: 'top-center',
+        style: {
+          background: '#ef4444',
+          color: '#ffffff',
+          border: '1px solid #dc2626',
+          fontSize: '15px',
+          fontWeight: '900',
+          boxShadow: '0 20px 25px -5px rgba(239, 68, 68, 0.4)'
+        }
+      });
+      return;
+    }
+
     setLoadingAction(true);
     try {
       await queueService.finish(id, status, comment, status === 'NOVA_COLETA' ? selectedPhotos : []);
+      toast.success('Análise finalizada com sucesso!');
       router.push('/analise');
     } catch (err) {
-      alert('Erro ao finalizar análise');
+      toast.error('Erro ao finalizar a análise. Verifique sua conexão.');
     } finally {
       setLoadingAction(false);
     }
@@ -60,9 +78,10 @@ export default function DetalheAnalisePage() {
     setLoadingAction(true);
     try {
       await queueService.release(id);
+      toast.success('Vistoria devolvida para a mesa.');
       router.push('/analise');
     } catch (err) {
-      alert('Erro ao devolver vistoria para a mesa');
+      toast.error('Erro ao devolver vistoria para a mesa.');
     } finally {
       setLoadingAction(false);
     }

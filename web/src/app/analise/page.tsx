@@ -26,6 +26,7 @@ import {
   Filter
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { 
   PieChart, 
   Pie, 
@@ -47,9 +48,15 @@ export default function MesaAnalisePage() {
   const [filter, setFilter] = useState('');
   const [isSpinning, setIsSpinning] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
   const { theme } = useTheme();
 
   const isDark = theme === 'dark';
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filter]);
 
   React.useEffect(() => {
     setMounted(true);
@@ -130,7 +137,7 @@ export default function MesaAnalisePage() {
     const baseUrl = window.location.origin;
     const link = `${baseUrl}/coleta/${id}`;
     navigator.clipboard.writeText(link);
-    alert('Link copiado!');
+    toast.success('Link copiado para a área de transferência!');
   };
 
   const handleSort = (key: string) => {
@@ -154,6 +161,13 @@ export default function MesaAnalisePage() {
     }
     return sortableItems;
   }, [filteredList, sortConfig]);
+
+  const paginatedList = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedList.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedList, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedList.length / itemsPerPage);
 
   const handleWhatsAppFollowup = (item: any, type: 'initial' | 'correction') => {
     const phone = '5511999999999'; 
@@ -307,15 +321,16 @@ export default function MesaAnalisePage() {
                       <th onClick={() => handleSort('updatedAt')} className="px-6 py-6 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer hover:bg-white/10 transition-colors">
                           <div className="flex items-center gap-2">Atualização {getSortIcon('updatedAt', sortConfig)}</div>
                       </th>
+                      <th className="px-6 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-center w-16">Obs.</th>
                       <th className="px-6 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-center">Ações</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                    {isLoading ? (
-                      <tr><td colSpan={8} className="py-32 text-center text-slate-300 dark:text-slate-700 font-black uppercase tracking-widest animate-pulse">Sincronizando Fila...</td></tr>
-                   ) : sortedList.map((item: any, idx: number) => (
+                      <tr><td colSpan={9} className="py-32 text-center text-slate-300 dark:text-slate-700 font-black uppercase tracking-widest animate-pulse">Sincronizando Fila...</td></tr>
+                   ) : paginatedList.map((item: any, idx: number) => (
                       <tr key={item.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors group">
-                         <td className="px-6 py-5 text-center text-slate-300 dark:text-slate-700 font-black text-[10px] italic">{idx + 1}</td>
+                         <td className="px-6 py-5 text-center text-slate-300 dark:text-slate-700 font-black text-[10px] italic">{(currentPage - 1) * itemsPerPage + idx + 1}</td>
                          <td className="px-6 py-5">
                             <span className="text-xs font-black text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">{item.inspection.protocol}</span>
                          </td>
@@ -345,6 +360,20 @@ export default function MesaAnalisePage() {
                                  {mounted ? new Date(item.updatedAt || item.inspection.updatedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '...'}
                                </span>
                             </div>
+                         </td>
+                         <td className="px-6 py-5 text-center">
+                           {item.inspection?.observacoes ? (
+                             <div className="group relative flex items-center justify-center">
+                               <MessageCircle size={18} className="text-orange-400 cursor-help" />
+                               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-64 p-3 bg-slate-900 text-white text-xs rounded-xl shadow-xl z-50 whitespace-normal text-left pointer-events-none">
+                                   <p className="font-bold mb-1 text-orange-400">Observação Técnica</p>
+                                   <p>{item.inspection.observacoes}</p>
+                                   <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+                               </div>
+                             </div>
+                           ) : (
+                             <span className="text-slate-300 dark:text-slate-700 font-bold">-</span>
+                           )}
                          </td>
                          <td className="px-6 py-5">
                             <div className="flex items-center justify-center gap-3">
@@ -388,12 +417,14 @@ export default function MesaAnalisePage() {
 
 
                                {activeTab === 'concluidos' && (
-                                  <button 
-                                    onClick={() => window.open(`${api.defaults.baseURL}/reports/inspection/${item.inspection?.id || item.inspectionId}`, '_blank')}
-                                    className="bg-slate-900 dark:bg-black text-white px-5 py-2 rounded-full text-[9px] font-black uppercase hover:bg-black dark:hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-100 dark:shadow-none"
-                                  >
+                                  <>
+                                     <button 
+                                      onClick={() => window.open(`${api.defaults.baseURL}/reports/inspection/${item.inspection?.id || item.inspectionId}`, '_blank')}
+                                      className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 px-4 py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors"
+                                     >
                                     <FileText size={12} className="text-emerald-400" /> Relatório
                                   </button>
+                                  </>
                                )}
                                
                                <Link href={`/analise/${item.inspectionId || item.inspection.id}`} target="_blank" className="h-8 w-8 flex items-center justify-center rounded-full text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
@@ -405,6 +436,48 @@ export default function MesaAnalisePage() {
                    ))}
                 </tbody>
              </table>
+             {sortedList.length > 0 && (
+               <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mostrar</span>
+                    <select 
+                      value={itemsPerPage} 
+                      onChange={e => {
+                        setItemsPerPage(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={15}>15</option>
+                      <option value={30}>30</option>
+                      <option value={50}>50</option>
+                    </select>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">por página</span>
+                 </div>
+                 
+                 <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all"
+                    >
+                      {'<'}
+                    </button>
+                    <span className="text-[11px] font-black tracking-widest text-slate-600 dark:text-slate-400 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+                      {currentPage} / {totalPages || 1}
+                    </span>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                      className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all"
+                    >
+                      {'>'}
+                    </button>
+                 </div>
+               </div>
+             )}
           </div>
         </div>
       </main>
@@ -455,7 +528,7 @@ function StatusBadge({ status, tab, item }: { status: string, tab: string, item?
     FINALIZADO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
     CONCLUIDO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
     REPROVADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
-    APROVADO_COM_RESSALVA: 'bg-orange-500 text-white border-orange-600 shadow-orange-100',
+    APROVADO_COM_RESSALVA: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
     EM_ANDAMENTO: item?.assignedToId ? 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800' : 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800',
   };
 

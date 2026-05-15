@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import api from '../../../services/api';
 import { inspectionService } from '../../../services/inspectionService';
 import Sidebar from '../../../components/Sidebar';
@@ -37,6 +38,8 @@ export default function NovaVistoriaPage() {
   const [createdData, setCreatedData] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
 
   React.useEffect(() => {
     setMounted(true);
@@ -85,7 +88,7 @@ export default function NovaVistoriaPage() {
       setCreatedData(response.data);
       refetch();
     } catch (err: any) {
-      alert('Erro ao criar vistoria: ' + (err.response?.data?.message || err.message));
+      toast.error('Erro ao criar vistoria: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -93,6 +96,7 @@ export default function NovaVistoriaPage() {
 
   const handleApplyFilter = () => {
     setAppliedFilters({ ...filters });
+    setCurrentPage(1);
   };
 
   const handleClearFilter = () => {
@@ -106,6 +110,7 @@ export default function NovaVistoriaPage() {
     };
     setFilters(empty);
     setAppliedFilters({});
+    setCurrentPage(1);
     setSortConfig({ key: 'createdAt', direction: 'desc' });
   };
 
@@ -137,6 +142,13 @@ export default function NovaVistoriaPage() {
     }
     return sortableItems;
   }, [results, sortConfig]);
+
+  const paginatedList = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedResults.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedResults, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(sortedResults.length / itemsPerPage);
 
   const copyToClipboard = () => {
     if (createdData?.shareLink) {
@@ -195,7 +207,19 @@ export default function NovaVistoriaPage() {
                       <button onClick={shareWhatsApp} className="bg-slate-900 text-white font-black px-6 py-4 rounded-2xl flex items-center gap-2 text-xs uppercase tracking-widest hover:scale-105 transition-all">
                          <MessageCircle size={18} /> WhatsApp
                       </button>
-                      <button onClick={() => setCreatedData(null)} className="bg-white/20 text-white font-black px-4 py-4 rounded-2xl flex items-center justify-center hover:bg-white/30 transition-all">
+                      <button onClick={() => {
+                          setCreatedData(null);
+                          setCopied(false);
+                          setFormData({
+                            placa: '',
+                            cliente: '',
+                            modelo: '',
+                            chassi: '',
+                            tipoVeiculo: 'CAMINHAO'
+                          });
+                        }} 
+                        className="bg-white/20 text-white font-black px-4 py-4 rounded-2xl flex items-center justify-center hover:bg-white/30 transition-all"
+                      >
                          <X size={20} />
                       </button>
                    </div>
@@ -376,7 +400,7 @@ export default function NovaVistoriaPage() {
                          <tr><td colSpan={5} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase animate-pulse">Pesquisando na base...</td></tr>
                       ) : sortedResults?.length === 0 ? (
                          <tr><td colSpan={5} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase">Nenhuma vistoria encontrada.</td></tr>
-                      ) : sortedResults?.map((item: any) => (
+                      ) : paginatedList?.map((item: any) => (
                          <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
                             <td className="px-8 py-5">
                                <div className="flex flex-col">
@@ -403,7 +427,7 @@ export default function NovaVistoriaPage() {
                                  onClick={() => {
                                     const baseUrl = window.location.origin;
                                     navigator.clipboard.writeText(`${baseUrl}/coleta/${item.id}`);
-                                    alert('Link de coleta copiado!');
+                                    toast.success('Link de coleta copiado para a área de transferência!');
                                  }}
                                  className="p-2 text-slate-300 dark:text-slate-600 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                                  title="Copiar Link de Coleta"
@@ -423,6 +447,48 @@ export default function NovaVistoriaPage() {
                       ))}
                    </tbody>
                 </table>
+                {sortedResults && sortedResults.length > 0 && (
+                  <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Mostrar</span>
+                       <select 
+                         value={itemsPerPage} 
+                         onChange={e => {
+                           setItemsPerPage(Number(e.target.value));
+                           setCurrentPage(1);
+                         }}
+                         className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                       >
+                         <option value={5}>5</option>
+                         <option value={10}>10</option>
+                         <option value={15}>15</option>
+                         <option value={30}>30</option>
+                         <option value={50}>50</option>
+                       </select>
+                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">por página</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                       <button 
+                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                         disabled={currentPage === 1}
+                         className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all"
+                       >
+                         {'<'}
+                       </button>
+                       <span className="text-[11px] font-black tracking-widest text-slate-600 dark:text-slate-400 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-inner">
+                         {currentPage} / {totalPages || 1}
+                       </span>
+                       <button 
+                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                         disabled={currentPage === totalPages || totalPages === 0}
+                         className="h-8 w-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 transition-all"
+                       >
+                         {'>'}
+                       </button>
+                    </div>
+                  </div>
+                )}
              </div>
           </section>
         </div>

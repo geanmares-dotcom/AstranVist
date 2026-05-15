@@ -48,6 +48,7 @@ export class ReportsService {
         motor: inspection.motor || 'NÃO CONSTAM DADOS',
         status: inspection.status === 'FINALIZADO' ? 'APROVADO' : (inspection.status === 'APROVADO_COM_RESSALVA' ? 'APROVADO COM RESSALVAS' : inspection.status),
         analyst: inspection.createdBy?.name || 'Sistema STRSAT',
+        observacoes: inspection.observacoes,
         photos: inspection.photos.map(p => ({
           label: p.categoria,
           url: p.url,
