@@ -43,6 +43,11 @@ export class QueueService {
 
     if (!item) throw new NotFoundException('Fila não encontrada');
 
+    // Se já estiver finalizada, não pode ser assumida
+    if (item.status === 'CONCLUIDO') {
+      throw new BadRequestException('Esta vistoria já foi concluída e não pode ser re-analisada.');
+    }
+
     // Se já estiver assumida por outra pessoa
     if (item.assignedToId && item.assignedToId !== userId) {
       throw new BadRequestException('Esta vistoria já está sendo analisada por outro colaborador');

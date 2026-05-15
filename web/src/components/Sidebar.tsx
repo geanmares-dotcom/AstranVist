@@ -73,7 +73,7 @@ export default function Sidebar() {
               className={`flex items-center gap-4 px-6 py-4 rounded-full transition-all duration-300 group relative ${
                 isActive 
                 ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-100 dark:shadow-none translate-x-2' 
-                : 'text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               <div className={`transition-colors ${isActive ? 'text-white' : 'group-hover:text-indigo-500'}`}>

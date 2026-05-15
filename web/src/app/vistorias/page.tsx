@@ -82,7 +82,7 @@ export default function VistoriasPage() {
                           </td>
                           <td className="px-3 py-2 font-bold text-slate-600">{item.protocol}</td>
                           <td className="px-3 py-2 text-center">
-                             <StatusBadge status={item.status} />
+                             <StatusBadge status={item.status} item={item} />
                           </td>
                           <td className="px-3 py-2 font-medium text-slate-700 truncate max-w-[150px]">{item.cliente || 'CONSUMIDOR FINAL'}</td>
                           <td className="px-3 py-2 font-black text-slate-900">{item.placa}</td>
@@ -94,7 +94,6 @@ export default function VistoriasPage() {
                           <td className="px-3 py-2 text-slate-600">{item.status === 'APROVADO' ? 'GEAN MARES' : '-'}</td>
                           <td className="px-3 py-2">
                              <div className="flex items-center justify-center gap-2">
-                                <Link href={`/analise/${item.id}`} className="text-slate-400 hover:text-indigo-600 transition-colors"><FileText size={16} /></Link>
                                 <button className="text-emerald-500 hover:text-emerald-700 transition-colors"><MessageSquare size={16} /></button>
                                 <button className="text-sky-500 hover:text-sky-700 transition-colors"><LinkIcon size={16} /></button>
                              </div>
@@ -110,28 +109,36 @@ export default function VistoriasPage() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const styles: any = {
-    FINALIZADO: 'bg-[#d1fae5] text-[#065f46] border border-[#065f46]/10',
-    APROVADO: 'bg-[#d1fae5] text-[#065f46] border border-[#065f46]/10',
-    ENVIADO: 'bg-[#dbeafe] text-[#1e40af] border border-[#1e40af]/10',
-    ABERTO: 'bg-[#cffafe] text-[#0e7490] border border-[#0e7490]/10',
-    AGUARDANDO_COLETA: 'bg-[#fef3c7] text-[#92400e] border border-[#92400e]/10',
-    REPROVADO: 'bg-rose-100 text-rose-700 border border-rose-200',
+function StatusBadge({ status, item }: { status: string, item?: any }) {
+  const styles: Record<string, string> = {
+    FINALIZADO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    CONCLUIDO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    REPROVADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+    APROVADO_COM_RESSALVA: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+    EM_ANDAMENTO: item?.assignedToId ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+    ENVIADO: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+    AGUARDANDO_COLETA: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+    NOVA_COLETA: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+    CANCELADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+    CANCELADA: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
   };
 
-  const label: any = {
-    FINALIZADO: 'FINALIZADO',
-    APROVADO: 'FINALIZADO',
-    ENVIADO: 'ENVIADO',
-    ABERTO: 'ABERTO',
-    AGUARDANDO_COLETA: 'ABERTO',
+  const labels: Record<string, string> = {
+    FINALIZADO: 'APROVADO',
+    CONCLUIDO: 'APROVADO',
     REPROVADO: 'REPROVADO',
+    APROVADO_COM_RESSALVA: 'APROVADO C/ RESS.',
+    EM_ANDAMENTO: item?.assignedToId ? 'EM ANÁLISE' : 'AGUARDANDO ANÁLISE',
+    ENVIADO: 'ENVIADO',
+    AGUARDANDO_COLETA: 'LINK CRIADO',
+    NOVA_COLETA: 'PENDENTE CLIENTE',
+    CANCELADO: 'CANCELADO',
+    CANCELADA: 'CANCELADO',
   };
 
   return (
-    <span className={`inline-block px-4 py-0.5 rounded text-[9px] font-black tracking-tighter w-24 ${styles[status] || styles.ENVIADO}`}>
-       {label[status] || status}
+    <span className={`inline-block px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest border text-center shadow-sm w-32 uppercase ${styles[status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+       {labels[status] || status}
     </span>
   );
 }

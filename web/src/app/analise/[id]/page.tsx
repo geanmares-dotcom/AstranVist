@@ -28,22 +28,21 @@ export default function DetalheAnalisePage() {
   const [comment, setComment] = useState('');
   const [loadingAction, setLoadingAction] = useState(false);
 
-  // Assume a vistoria ao carregar a página
+  const { data: inspection, isLoading } = useQuery({
+    queryKey: ['inspection', id],
+    queryFn: () => inspectionService.getById(id),
+  });
+
+  // Assume a vistoria ao carregar a página, exceto se já estiver encerrada
   useEffect(() => {
-    if (id) {
+    if (inspection && !['FINALIZADO', 'APROVADO_COM_RESSALVA', 'REPROVADO', 'CANCELADO', 'CANCELADA'].includes(inspection.status)) {
       queueService.assign(id).catch(err => {
          const message = err.response?.data?.message || 'Esta vistoria já está sendo analisada.';
          toast.error(message);
          router.push('/analise');
       });
     }
-  }, [id, router]);
-
-
-  const { data: inspection, isLoading } = useQuery({
-    queryKey: ['inspection', id],
-    queryFn: () => inspectionService.getById(id),
-  });
+  }, [inspection, id, router]);
 
   const handleFinish = async (status: string) => {
     if ((status === 'APROVADO_COM_RESSALVA' || status === 'REPROVADO' || status === 'NOVA_COLETA') && !comment.trim()) {
@@ -254,61 +253,90 @@ export default function DetalheAnalisePage() {
              {/* Sidebar de Conclusão */}
              <div className="w-full lg:w-96 shrink-0">
                 <div className="bg-[var(--bg-card)] p-8 rounded-2xl shadow-xl border-2 border-[var(--border-color)] sticky top-8 space-y-8">
-                   <div className="space-y-2">
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Parecer Técnico</h3>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium italic">Insira observações relevantes para o laudo final.</p>
-                   </div>
-
-                   <textarea 
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="w-full rounded-[1.5rem] min-h-[180px] resize-none text-sm p-5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
-
-                    placeholder="Descreva aqui os detalhes da análise..."
-                   />
-
-
-                   <div className="space-y-2">
-                      <button 
-                        disabled={loadingAction}
-                        onClick={() => handleFinish('FINALIZADO')}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-100 dark:shadow-none uppercase text-[11px] tracking-widest disabled:opacity-50"
-                      >
-                         <CheckCircle size={18} /> Aprovar Vistoria
-                      </button>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <button 
-                          disabled={loadingAction}
-                          onClick={() => handleFinish('APROVADO_COM_RESSALVA')}
-                          className="bg-slate-900 dark:bg-black hover:bg-slate-800 dark:hover:bg-slate-950 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
-                        >
-                           <ShieldAlert size={14} className="text-orange-400" /> Ressalva
-                        </button>
-
-                        <button 
-                          disabled={loadingAction}
-                          onClick={() => handleFinish('REPROVADO')}
-                          className="bg-[var(--bg-card)] border border-rose-200 dark:border-rose-900/30 hover:border-rose-500 text-rose-500 font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
-                        >
-                           <XCircle size={14} /> Reprovar
-                        </button>
+                   
+                   {['FINALIZADO', 'APROVADO_COM_RESSALVA', 'REPROVADO', 'CANCELADO', 'CANCELADA'].includes(inspection.status) ? (
+                      <div className="space-y-6">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                           <h3 className="text-slate-600 dark:text-slate-400 font-black text-sm uppercase tracking-widest flex items-center gap-2 mb-1">
+                             <CheckCircle size={16} /> Vistoria Encerrada
+                           </h3>
+                           <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                             Esta vistoria já foi concluída ou cancelada. Ações técnicas de aprovação, ressalva e reprovação estão permanentemente bloqueadas.
+                           </p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Edição de Notas Internas</h3>
+                           <textarea 
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            className="w-full rounded-xl min-h-[120px] resize-none text-sm p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                            placeholder="Adicione notas internas sobre este cancelamento..."
+                           />
+                           <button 
+                             disabled={loadingAction}
+                             onClick={() => toast.success('Notas internas salvas (Modo de Edição)!')}
+                             className="w-full bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 font-black py-3.5 rounded-xl flex items-center justify-center transition-all uppercase text-[10px] tracking-widest disabled:opacity-50 mt-4 shadow-lg shadow-slate-200 dark:shadow-none"
+                           >
+                              Salvar Edição
+                           </button>
+                        </div>
                       </div>
-                   </div>
+                   ) : (
+                     <>
+                       <div className="space-y-2">
+                          <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Parecer Técnico</h3>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 font-medium italic">Insira observações relevantes para o laudo final.</p>
+                       </div>
 
-                   {selectedPhotos.length > 0 && (
-                      <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2">
-                         <button 
-                          disabled={loadingAction}
-                          onClick={() => handleFinish('NOVA_COLETA')}
-                          className="w-full bg-indigo-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 dark:shadow-none"
-                         >
-                            Solicitar Nova Coleta ({selectedPhotos.length})
-                         </button>
-                      </div>
+                       <textarea 
+                        value={comment}
+                        onChange={(e) => setComment(e.target.value)}
+                        className="w-full rounded-[1.5rem] min-h-[180px] resize-none text-sm p-5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-indigo-600/10 focus:border-indigo-600 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                        placeholder="Descreva aqui os detalhes da análise..."
+                       />
+
+                       <div className="space-y-2">
+                          <button 
+                            disabled={loadingAction}
+                            onClick={() => handleFinish('FINALIZADO')}
+                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 transition-all active:scale-95 shadow-lg shadow-emerald-100 dark:shadow-none uppercase text-[11px] tracking-widest disabled:opacity-50"
+                          >
+                             <CheckCircle size={18} /> Aprovar Vistoria
+                          </button>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button 
+                              disabled={loadingAction}
+                              onClick={() => handleFinish('APROVADO_COM_RESSALVA')}
+                              className="bg-slate-900 dark:bg-black hover:bg-slate-800 dark:hover:bg-slate-950 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
+                            >
+                               <ShieldAlert size={14} className="text-orange-400" /> Ressalva
+                            </button>
+
+                            <button 
+                              disabled={loadingAction}
+                              onClick={() => handleFinish('REPROVADO')}
+                              className="bg-[var(--bg-card)] border border-rose-200 dark:border-rose-900/30 hover:border-rose-500 text-rose-500 font-black py-3 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 uppercase text-[9px] tracking-widest disabled:opacity-50"
+                            >
+                               <XCircle size={14} /> Reprovar
+                            </button>
+                          </div>
+                       </div>
+
+                       {selectedPhotos.length > 0 && (
+                          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2">
+                             <button 
+                              disabled={loadingAction}
+                              onClick={() => handleFinish('NOVA_COLETA')}
+                              className="w-full bg-indigo-600 text-white font-black py-3.5 rounded-xl flex items-center justify-center gap-3 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest shadow-lg shadow-indigo-100 dark:shadow-none"
+                             >
+                                Solicitar Nova Coleta ({selectedPhotos.length})
+                             </button>
+                          </div>
+                       )}
+                     </>
                    )}
-
-
                 </div>
              </div>
           </div>

@@ -229,7 +229,7 @@ export default function NovaVistoriaPage() {
                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-6">
                       <div className="space-y-2">
                          <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Placa</label>
-                         <input required type="text" placeholder="ABC-1234" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all uppercase font-mono tracking-widest text-slate-900 dark:text-white" value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value})} />
+                         <input required type="text" placeholder="ABC-1234" className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-5 py-4 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all uppercase font-mono tracking-widest text-slate-900 dark:text-white" value={formData.placa} onChange={e => setFormData({...formData, placa: e.target.value.toUpperCase()})} />
                       </div>
                       <div className="space-y-2">
                          <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Modelo / Versão</label>
@@ -260,13 +260,19 @@ export default function NovaVistoriaPage() {
                    </div>
                    <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Pesquisa Avançada</h2>
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                   <RefreshCcw size={12} /> Atualizado em tempo real
-                </div>
+                <button 
+                  onClick={() => refetch()}
+                  disabled={loadingResults}
+                  className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 uppercase tracking-widest transition-all cursor-pointer group disabled:opacity-50"
+                  title="Recarregar lista"
+                >
+                   <RefreshCcw size={12} className={loadingResults ? "animate-spin text-indigo-600" : "group-hover:rotate-180 transition-transform duration-500"} /> 
+                   {loadingResults ? 'Atualizando...' : 'Atualizar Lista'}
+                </button>
              </div>
 
              {/* Painel de Filtros */}
-             <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-sm border border-slate-100 dark:border-slate-800 space-y-6">
+             <div className="ovi-card p-8 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                    {/* Busca por Texto */}
                    <div className="md:col-span-5 flex h-14">
@@ -368,59 +374,64 @@ export default function NovaVistoriaPage() {
              </div>
 
              {/* Tabela de Resultados */}
-             <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
+             <div className="ovi-card overflow-hidden">
                 <table className="w-full text-left border-collapse">
                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                         <th onClick={() => handleSort('createdAt')} className="px-8 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                      <tr className="bg-indigo-600 dark:bg-slate-800 text-white transition-colors duration-500">
+                         <th onClick={() => handleSort('protocol')} className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer hover:bg-white/10 transition-colors group">
                             <div className="flex items-center gap-2">
-                                Vistoria / Data {getSortIcon('createdAt', sortConfig)}
+                                Protocolo {getSortIcon('protocol', sortConfig)}
                             </div>
                          </th>
-                         <th onClick={() => handleSort('cliente')} className="px-8 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                         <th onClick={() => handleSort('createdAt')} className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer hover:bg-white/10 transition-colors group">
+                            <div className="flex items-center gap-2">
+                                Data {getSortIcon('createdAt', sortConfig)}
+                            </div>
+                         </th>
+                         <th onClick={() => handleSort('cliente')} className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer hover:bg-white/10 transition-colors group">
                             <div className="flex items-center gap-2">
                                 Cliente {getSortIcon('cliente', sortConfig)}
                             </div>
                          </th>
-                         <th onClick={() => handleSort('placa')} className="px-8 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 dark:text-slate-500 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                         <th onClick={() => handleSort('placa')} className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] cursor-pointer hover:bg-white/10 transition-colors group">
                             <div className="flex items-center gap-2">
                                 Veículo {getSortIcon('placa', sortConfig)}
                             </div>
                          </th>
-                         <th onClick={() => handleSort('status')} className="px-8 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 dark:text-slate-500 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                         <th onClick={() => handleSort('status')} className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-center cursor-pointer hover:bg-white/10 transition-colors group">
                             <div className="flex items-center gap-2 justify-center">
                                 Status {getSortIcon('status', sortConfig)}
                             </div>
                          </th>
-                         <th className="px-8 py-5 font-black uppercase tracking-widest text-[10px] text-slate-400 dark:text-slate-500 text-right">Ações</th>
+                         <th className="px-8 py-6 font-black uppercase tracking-[0.2em] text-[10px] text-right">Ações</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                       {loadingResults ? (
-                         <tr><td colSpan={5} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase animate-pulse">Pesquisando na base...</td></tr>
+                         <tr><td colSpan={6} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase animate-pulse">Pesquisando na base...</td></tr>
                       ) : sortedResults?.length === 0 ? (
-                         <tr><td colSpan={5} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase">Nenhuma vistoria encontrada.</td></tr>
+                         <tr><td colSpan={6} className="py-20 text-center text-slate-300 dark:text-slate-700 font-bold uppercase">Nenhuma vistoria encontrada.</td></tr>
                       ) : paginatedList?.map((item: any) => (
                          <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all group">
                             <td className="px-8 py-5">
-                               <div className="flex flex-col">
-                                  <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{item.protocol}</span>
-                                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
-                                    {mounted ? new Date(item.createdAt).toLocaleDateString('pt-BR') : '...'}
-                                  </span>
-                               </div>
+                               <span className="text-xs font-black text-indigo-600 dark:text-indigo-400">{item.protocol}</span>
+                            </td>
+                            <td className="px-8 py-5">
+                               <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">
+                                 {mounted ? new Date(item.createdAt).toLocaleDateString('pt-BR') : '...'}
+                               </span>
                             </td>
                             <td className="px-8 py-5">
                                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.cliente}</span>
                             </td>
                             <td className="px-8 py-5">
                                <div className="flex flex-col">
-                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.placa}</span>
+                                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">{item.placa}</span>
                                   <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]">{item.modelo}</span>
                                </div>
                             </td>
                             <td className="px-8 py-5 text-center">
-                               <StatusBadge status={item.status} />
+                               <StatusBadge status={item.status} item={item} />
                             </td>
                             <td className="px-8 py-5 text-right flex items-center justify-end gap-2">
                                <button 
@@ -433,13 +444,6 @@ export default function NovaVistoriaPage() {
                                  title="Copiar Link de Coleta"
                                >
                                   <Copy size={16} />
-                               </button>
-                               <button 
-                                 onClick={() => router.push(`/analise/${item.id}`)}
-                                 className="p-2 text-slate-300 dark:text-slate-600 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                 title="Ver Detalhes"
-                               >
-                                  <ExternalLink size={18} />
                                </button>
                             </td>
 
@@ -502,30 +506,36 @@ function getSortIcon(key: string, config: any) {
   return config.direction === 'asc' ? <ChevronUp size={12} className="text-indigo-600 dark:text-indigo-400" /> : <ChevronDown size={12} className="text-indigo-600 dark:text-indigo-400" />;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, item }: { status: string, item?: any }) {
 
-  const styles: any = {
-    FINALIZADO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800',
-    REPROVADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800',
-    APROVADO_COM_RESSALVA: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800',
-    EM_ANDAMENTO: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800',
-    ENVIADO: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800',
+  const styles: Record<string, string> = {
+    FINALIZADO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    CONCLUIDO: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    REPROVADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+    APROVADO_COM_RESSALVA: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+    EM_ANDAMENTO: item?.assignedToId ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+    ENVIADO: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800',
     AGUARDANDO_COLETA: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700',
-    NOVA_COLETA: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800',
+    NOVA_COLETA: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+    CANCELADO: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+    CANCELADA: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800',
   };
 
-  const labels: any = {
-    FINALIZADO: 'CONCLUÍDO',
+  const labels: Record<string, string> = {
+    FINALIZADO: 'APROVADO',
+    CONCLUIDO: 'APROVADO',
     REPROVADO: 'REPROVADO',
-    APROVADO_COM_RESSALVA: 'CONCLUÍDO',
-    EM_ANDAMENTO: 'ANÁLISE',
+    APROVADO_COM_RESSALVA: 'APROVADO C/ RESS.',
+    EM_ANDAMENTO: item?.assignedToId ? 'EM ANÁLISE' : 'AGUARDANDO ANÁLISE',
     ENVIADO: 'ENVIADO',
     AGUARDANDO_COLETA: 'LINK CRIADO',
     NOVA_COLETA: 'PENDENTE CLIENTE',
+    CANCELADO: 'CANCELADO',
+    CANCELADA: 'CANCELADO',
   };
 
   return (
-    <span className={`inline-block px-3 py-1 rounded-lg text-[9px] font-black tracking-widest border ${styles[status] || styles.ENVIADO}`}>
+    <span className={`inline-block px-3 py-1.5 rounded-full text-[9px] font-black tracking-widest border text-center shadow-sm w-32 uppercase ${styles[status] || 'bg-slate-50 text-slate-600 border-slate-200'}`}>
        {labels[status] || status}
     </span>
   );

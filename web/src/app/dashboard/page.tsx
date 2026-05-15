@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Gráfico de Volume Mensal */}
-            <div className="lg:col-span-8 ovi-card p-10 flex flex-col h-[480px]">
+            <div className="lg:col-span-8 ovi-card p-10 flex flex-col h-full min-h-[480px]">
               <div className="flex items-center justify-between mb-10">
                 <div>
                    <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Volume Mensal</h3>
@@ -204,7 +204,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Distribuição por Status */}
-            <div className="lg:col-span-4 ovi-card p-10 flex flex-col min-h-[480px]">
+            <div className="lg:col-span-4 ovi-card p-10 flex flex-col h-full min-h-[480px]">
               <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight mb-2 text-center">Distribuição</h3>
               <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-8 text-center">Status das vistorias</p>
               

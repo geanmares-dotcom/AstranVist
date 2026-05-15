@@ -344,12 +344,15 @@ export default function MesaAnalisePage() {
                                   <span className="font-bold text-xs text-slate-700 dark:text-slate-300">{item.assignedTo.name}</span>
                                </div>
                             ) : (
-                               <span className="text-slate-400 dark:text-slate-600 font-bold text-[10px] italic bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-tighter">{item.inspection.createdBy?.name || 'SISTEMA'}</span>
+                               <span className="text-slate-400 dark:text-slate-500 font-black text-center block w-full">-</span>
                             )}
                          </td>
                          <td className="px-6 py-5 font-bold text-xs text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{item.inspection.cliente || 'CONSUMIDOR FINAL'}</td>
                          <td className="px-6 py-5">
-                            <span className="bg-slate-900 dark:bg-black text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest font-mono">{item.inspection.placa}</span>
+                            <div className="flex flex-col">
+                               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase">{item.inspection.placa}</span>
+                               {item.inspection.modelo && <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 truncate max-w-[120px]">{item.inspection.modelo}</span>}
+                            </div>
                          </td>
                          <td className="px-6 py-5">
                             <div className="flex flex-col">
@@ -426,10 +429,16 @@ export default function MesaAnalisePage() {
                                   </button>
                                   </>
                                )}
-                               
-                               <Link href={`/analise/${item.inspectionId || item.inspection.id}`} target="_blank" className="h-8 w-8 flex items-center justify-center rounded-full text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
-                                  <ExternalLink size={16} />
-                               </Link>
+                               {!['FINALIZADO', 'APROVADO_COM_RESSALVA', 'REPROVADO', 'CANCELADO', 'CANCELADA'].includes(item.inspection?.status || item.status) && (
+                                 <Link 
+                                   href={`/analise/${item.inspectionId || item.inspection.id}`} 
+                                   target="_blank" 
+                                   title="Analisar Vistoria"
+                                   className="h-8 w-8 flex items-center justify-center rounded-full text-slate-300 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all"
+                                 >
+                                    <ExternalLink size={16} />
+                                 </Link>
+                               )}
                             </div>
                          </td>
                       </tr>
@@ -538,10 +547,10 @@ function StatusBadge({ status, tab, item }: { status: string, tab: string, item?
     COLETA_ACESSADA: 'ACESSADO',
     COLETA_EM_ANDAMENTO: 'EM ANDAMENTO',
     NOVA_COLETA: 'PENDENTE CLIENTE',
-    FINALIZADO: 'CONCLUÍDO',
-    CONCLUIDO: 'CONCLUÍDO',
+    FINALIZADO: 'APROVADO',
+    CONCLUIDO: 'APROVADO',
     REPROVADO: 'REPROVADO',
-    APROVADO_COM_RESSALVA: 'CONCLUÍDO C/ RESS.',
+    APROVADO_COM_RESSALVA: 'APROVADO C/ RESS.',
     EM_ANDAMENTO: item?.assignedToId ? 'EM ANÁLISE' : 'AGUARDANDO ANÁLISE',
   };
 
